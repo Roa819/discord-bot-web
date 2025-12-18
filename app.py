@@ -459,6 +459,101 @@ async def get_defeat_participants(defeat_history_id: int):
         return result
 
 
+async def get_defeat_attack_history(defeat_history_id: int):
+    """討伐履歴の個別攻撃を時系列順に取得"""
+    if not DATABASE_URL:
+        from datetime import datetime, timedelta
+        now = datetime.utcnow()
+        return [
+            {
+                'user_id': 123456789012345678,
+                'user_name': 'Player1',
+                'damage': 84,
+                'is_crit': True,
+                'attacked_at': now - timedelta(minutes=30),
+                'sequence': 1
+            },
+            {
+                'user_id': 234567890123456789,
+                'user_name': 'Player2',
+                'damage': 56,
+                'is_crit': False,
+                'attacked_at': now - timedelta(minutes=29),
+                'sequence': 2
+            },
+            {
+                'user_id': 123456789012345678,
+                'user_name': 'Player1',
+                'damage': 56,
+                'is_crit': False,
+                'attacked_at': now - timedelta(minutes=28),
+                'sequence': 3
+            }
+        ]
+    
+    pool = await init_db_pool()
+    async with pool.acquire() as conn:
+        # まず raid_actions テーブルが存在するか確認
+        table_exists = await conn.fetchval("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = 'raid_actions'
+            )
+        """)
+        
+        if not table_exists:
+            # raid_actions がない場合、participants から last_turn_log を展開
+            participants = await conn.fetch("""
+                SELECT 
+                    user_id,
+                    user_name,
+                    last_turn_log,
+                    first_attack_at
+                FROM raid_defeat_participants
+                WHERE defeat_history_id = $1
+                ORDER BY first_attack_at
+            """, defeat_history_id)
+            
+            # last_turn_log を展開して履歴を作成
+            history = []
+            for p in participants:
+                log_data = p['last_turn_log']
+                if isinstance(log_data, str):
+                    try:
+                        log_data = json.loads(log_data)
+                    except (json.JSONDecodeError, TypeError):
+                        log_data = None
+                
+                if log_data and isinstance(log_data, list):
+                    for idx, action in enumerate(log_data):
+                        if action.get('actor') == 'player':
+                            history.append({
+                                'user_id': p['user_id'],
+                                'user_name': p['user_name'],
+                                'damage': action.get('damage', 0),
+                                'is_crit': action.get('is_crit', False),
+                                'attacked_at': p['first_attack_at'],  # 正確な時刻は不明
+                                'sequence': len(history) + 1
+                            })
+            
+            return history
+        else:
+            # raid_actions テーブルから取得
+            actions = await conn.fetch("""
+                SELECT 
+                    user_id,
+                    user_name,
+                    damage,
+                    is_crit,
+                    attacked_at,
+                    ROW_NUMBER() OVER (ORDER BY attacked_at) as sequence
+                FROM raid_actions
+                WHERE defeat_history_id = $1
+                ORDER BY attacked_at
+            """, defeat_history_id)
+            return [dict(a) for a in actions]
+
+
 async def get_all_time_rankings():
     """全期間の累計ダメージランキング"""
     # データベース接続がない場合はモックデータを返す
@@ -705,7 +800,8 @@ def index():
 
 @app.route('/defeat/<int:defeat_id>')
 def defeat_detail(defeat_id):
-    """討伐詳細：参加者とダメージランキング"""
+    """討伐詳細：攻撃履歴"""
+    attack_history = run_async(get_defeat_attack_history(defeat_id))
     participants = run_async(get_defeat_participants(defeat_id))
     history_list = run_async(get_defeat_history())
     
@@ -716,7 +812,8 @@ def defeat_detail(defeat_id):
         'boss_detail.html',
         defeat=defeat_info,
         defeat_id=defeat_id,
-        participants=participants
+        participants=participants,
+        attack_history=attack_history
     )
 
 

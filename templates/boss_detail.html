@@ -61,6 +61,53 @@
 <div class="row">
     <div class="col-12">
         <div class="card">
+            <div class="card-header bg-info">
+                <h5 class="mb-0">📜 攻撃履歴</h5>
+            </div>
+            <div class="card-body">
+                {% if attack_history %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm">
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">#</th>
+                                <th>ユーザー名</th>
+                                <th class="text-end">ダメージ</th>
+                                <th>攻撃時刻</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for attack in attack_history %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>
+                                    <strong>{{ attack.user_name }}</strong>
+                                    {% if attack.is_crit %}
+                                        <span class="badge bg-warning">CRIT</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <strong class="text-danger">{{ attack.damage|format_number }}</strong>
+                                </td>
+                                <td>
+                                    <small>{{ attack.attacked_at|to_jst_short }}</small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">攻撃履歴がありません</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
             <div class="card-header bg-warning">
                 <h5 class="mb-0">🏆 ダメージランキング</h5>
             </div>
@@ -182,6 +229,11 @@ Data: {{ participant.last_turn_log|tojson(indent=2) }}</pre>
                                             {{ participant.user_name }}の攻撃 → {{ action.damage|format_number }}ダメージ
                                             {% if action.is_crit %}<span style="color: #faa61a;">【クリティカル】</span>{% endif %}
                                         </div>
+                                        {% elif action.actor == 'boss' or action.actor == 'enemy' %}
+                                        <div style="color: #f04747;">
+                                            {{ defeat.boss_name }}の攻撃 → {{ action.damage|format_number }}ダメージ
+                                            {% if action.is_crit %}<span style="color: #faa61a;">【クリティカル】</span>{% endif %}
+                                        </div>
                                         {% endif %}
                                     {% endfor %}
                                 {% else %}
@@ -201,7 +253,7 @@ Data: {{ participant.last_turn_log|tojson(indent=2) }}</pre>
                                     {% for action in battle_log %}
                                         {% if action.actor == 'player' %}
                                             {% set ns.player_dmg = ns.player_dmg + action.damage %}
-                                        {% elif action.actor == 'enemy' %}
+                                        {% elif action.actor == 'boss' or action.actor == 'enemy' %}
                                             {% set ns.boss_dmg = ns.boss_dmg + action.damage %}
                                         {% endif %}
                                     {% endfor %}
