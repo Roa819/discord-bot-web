@@ -1,84 +1,78 @@
 {% extends "base.html" %}
 
-{% block title %}レイドボス一覧 - 討伐記録{% endblock %}
+{% block title %}レイドボス討伐履歴{% endblock %}
 
 {% block content %}
-<div class="row">
+<div class="row mb-4">
     <div class="col-12">
-        <h1 class="mb-4">🎯 レイドボス一覧</h1>
+        <h1 class="mb-3">⚔️ レイドボス討伐履歴</h1>
+        <p class="text-white-50">過去に討伐されたレイドボスの記録一覧</p>
     </div>
 </div>
 
-{% if bosses %}
+{% if history %}
+<!-- 討伐履歴テーブル -->
 <div class="row">
-    {% for boss in bosses %}
-    <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card {% if boss.defeated %}border-success{% else %}border-danger{% endif %}">
-            <div class="card-header {% if boss.defeated %}bg-success text-white{% else %}bg-danger text-white{% endif %}">
-                <h5 class="card-title mb-0">
-                    {% if boss.defeated %}
-                        ✅ {{ boss.boss_name }}
-                    {% else %}
-                        ⚔️ {{ boss.boss_name }}
-                    {% endif %}
-                </h5>
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">📜 討伐履歴一覧</h5>
             </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <strong>ボスキー:</strong> <code>{{ boss.boss_key }}</code>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">#</th>
+                                <th>ボス名</th>
+                                <th class="text-end">最大HP</th>
+                                <th class="text-end">参加者数</th>
+                                <th class="text-end">総ダメージ</th>
+                                <th>討伐日時 (JST)</th>
+                                <th style="width: 120px;">詳細</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for defeat in history %}
+                            <tr {% if loop.index <= 3 %}class="table-success"{% endif %}>
+                                <td>
+                                    <strong>#{{ defeat.id }}</strong>
+                                </td>
+                                <td>
+                                    <strong>{{ defeat.boss_name }}</strong>
+                                    <br>
+                                    <small class="text-muted"><code>{{ defeat.boss_key }}</code></small>
+                                </td>
+                                <td class="text-end">
+                                    {{ defeat.boss_max_hp|int|format_number }}
+                                </td>
+                                <td class="text-end">
+                                    <span class="badge bg-info">{{ defeat.total_participants }} 人</span>
+                                </td>
+                                <td class="text-end">
+                                    <strong class="text-danger">{{ defeat.total_damage|int|format_number }}</strong>
+                                </td>
+                                <td>
+                                    <small>{{ defeat.defeated_at|to_jst }}</small>
+                                </td>
+                                <td>
+                                    <a href="/defeat/{{ defeat.id }}" class="btn btn-sm btn-primary">
+                                        📊 詳細
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-                
-                {% if boss.defeated %}
-                <div class="alert alert-success mb-2">
-                    <strong>討伐完了！</strong>
-                </div>
-                <div class="mb-2">
-                    <small class="text-muted">討伐日時:</small><br>
-                    {{ boss.defeated_at.strftime('%Y-%m-%d %H:%M:%S') if boss.defeated_at else 'N/A' }}
-                </div>
-                {% else %}
-                <div class="progress mb-3" style="height: 25px;">
-                    {% set hp_percent = (boss.current_hp / boss.max_hp * 100) if boss.max_hp > 0 else 0 %}
-                    <div class="progress-bar bg-danger" role="progressbar" 
-                         style="width: {{ hp_percent }}%"
-                         aria-valuenow="{{ boss.current_hp }}" 
-                         aria-valuemin="0" 
-                         aria-valuemax="{{ boss.max_hp }}">
-                        {{ boss.current_hp|int }} / {{ boss.max_hp|int }}
-                    </div>
-                </div>
-                {% endif %}
-                
-                <div class="mb-2">
-                    <small class="text-muted">出現日時:</small><br>
-                    {{ boss.spawned_at.strftime('%Y-%m-%d %H:%M:%S') if boss.spawned_at else 'N/A' }}
-                </div>
-                
-                <a href="/boss/{{ boss.boss_key }}" class="btn btn-primary w-100 mt-2">
-                    詳細を見る
-                </a>
             </div>
         </div>
     </div>
-    {% endfor %}
 </div>
 {% else %}
 <div class="alert alert-info">
-    <h4>レイドボスが見つかりません</h4>
-    <p>現在、記録されているレイドボスはありません。</p>
+    <h4>📭 討伐履歴がありません</h4>
+    <p class="mb-0">現在、記録されている討伐履歴はありません。</p>
 </div>
 {% endif %}
-
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">📊 統計情報</h5>
-                <p class="mb-0">全ボス数: <strong>{{ bosses|length }}</strong></p>
-                <p class="mb-0">討伐済み: <strong>{{ bosses|selectattr('defeated')|list|length }}</strong></p>
-                <p class="mb-0">戦闘中: <strong>{{ bosses|rejectattr('defeated')|list|length }}</strong></p>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}

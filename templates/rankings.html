@@ -5,8 +5,8 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <h1 class="mb-3">🏆 全期間ダメージランキング</h1>
-        <p class="text-muted">全レイドボスを通しての累計ダメージランキングです</p>
+        <h1 class="mb-3 text-white">🏆 全期間ダメージランキング</h1>
+        <p class="text-white-50">全レイドボスを通しての累計ダメージランキングです</p>
     </div>
 </div>
 
@@ -23,10 +23,10 @@
                         <thead>
                             <tr>
                                 <th style="width: 80px;">順位</th>
-                                <th>ユーザーID</th>
+                                <th>ユーザー名</th>
+                                <th class="text-end">討伐回数</th>
                                 <th class="text-end">累計ダメージ</th>
                                 <th class="text-end">総攻撃回数</th>
-                                <th class="text-end">参加ボス数</th>
                                 <th class="text-end">平均ダメージ</th>
                             </tr>
                         </thead>
@@ -45,16 +45,17 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <code>{{ user.user_id }}</code>
+                                    <strong>{{ user.user_name }}</strong><br>
+                                    <small class="text-muted"><code>{{ user.user_id }}</code></small>
+                                </td>
+                                <td class="text-end">
+                                    {{ user.total_defeats }}
                                 </td>
                                 <td class="text-end">
                                     <strong class="text-danger">{{ user.total_damage|format_number }}</strong>
                                 </td>
                                 <td class="text-end">
                                     {{ user.total_actions|format_number }}
-                                </td>
-                                <td class="text-end">
-                                    {{ user.bosses_participated }}
                                 </td>
                                 <td class="text-end">
                                     {% if user.total_actions > 0 %}

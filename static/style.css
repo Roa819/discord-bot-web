@@ -1,85 +1,271 @@
-/* カスタムスタイル */
+/* Modern Professional Design */
+
+:root {
+    --primary-color: #2563eb;
+    --secondary-color: #64748b;
+    --success-color: #10b981;
+    --danger-color: #ef4444;
+    --warning-color: #f59e0b;
+    --dark-bg: #0f172a;
+    --light-bg: #f8fafc;
+    --card-bg: #ffffff;
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+    --border-color: #e2e8f0;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 
 body {
-    background-color: #f8f9fa;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-attachment: fixed;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+    color: var(--text-primary);
+    min-height: 100vh;
 }
 
-.card {
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transition: transform 0.2s;
-}
-
-.card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-}
-
-.progress {
-    border-radius: 10px;
-}
-
-.progress-bar {
-    transition: width 0.6s ease;
-}
-
-code {
-    background-color: #e9ecef;
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-size: 0.9em;
-}
-
-.table-hover tbody tr:hover {
-    background-color: rgba(255, 193, 7, 0.1);
+/* Navbar Styling */
+.navbar {
+    background: rgba(15, 23, 42, 0.95) !important;
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: var(--shadow-md);
 }
 
 .navbar-brand {
-    font-weight: bold;
-    font-size: 1.3rem;
+    font-weight: 700;
+    font-size: 1.4rem;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
+.nav-link {
+    font-weight: 500;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.nav-link:hover {
+    color: #667eea !important;
+}
+
+/* Container */
+main.container {
+    background: transparent;
+    padding: 2rem 1rem;
+}
+
+/* Card Styling */
+.card {
+    background: var(--card-bg);
+    border: none;
+    border-radius: 16px;
+    box-shadow: var(--shadow-lg);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+.card-header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #1e40af 100%);
+    border: none;
+    padding: 1.25rem 1.5rem;
+    font-weight: 600;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* Progress Bar */
+.progress {
+    height: 12px;
+    border-radius: 8px;
+    background-color: #e2e8f0;
+    overflow: hidden;
+}
+
+.progress-bar {
+    background: linear-gradient(90deg, var(--danger-color) 0%, #dc2626 100%);
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+}
+
+/* Tables */
+.table {
+    margin-bottom: 0;
+}
+
+.table thead th {
+    background: var(--light-bg);
+    color: var(--text-primary);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--border-color);
+    padding: 1rem;
+}
+
+.table tbody tr {
+    transition: all 0.2s ease;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.table tbody tr:hover {
+    background-color: rgba(99, 102, 241, 0.05);
+    transform: scale(1.01);
+}
+
+.table-warning {
+    background: linear-gradient(90deg, rgba(245, 158, 11, 0.1) 0%, rgba(251, 191, 36, 0.1) 100%) !important;
+}
+
+/* Buttons */
+.btn {
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 0.625rem 1.25rem;
+    transition: all 0.3s ease;
+    border: none;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #1e40af 100%);
+    box-shadow: 0 4px 6px -1px rgb(37 99 235 / 0.3);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgb(37 99 235 / 0.4);
+}
+
+.btn-secondary {
+    background: var(--secondary-color);
+}
+
+/* Badges & Code */
+code {
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    border: 1px solid var(--border-color);
+}
+
+/* Alerts */
+.alert {
+    border: none;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.alert-success {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%);
+    color: #065f46;
+    border-left: 4px solid var(--success-color);
+}
+
+.alert-info {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.1) 100%);
+    color: #1e40af;
+    border-left: 4px solid var(--primary-color);
+}
+
+/* Footer */
 footer {
-    margin-top: auto;
+    background: rgba(15, 23, 42, 0.95) !important;
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 4rem;
 }
 
-/* レスポンシブ調整 */
+/* Stats Cards */
+.stats-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: var(--shadow-lg);
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text-primary);
+}
+
+h1 {
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive */
 @media (max-width: 768px) {
-    .display-4 {
-        font-size: 2rem;
-    }
-    
-    .display-6 {
-        font-size: 1.5rem;
+    .card-body {
+        padding: 1rem;
     }
     
     .table {
-        font-size: 0.9rem;
+        font-size: 0.875rem;
+    }
+    
+    .btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
     }
 }
 
-/* ダメージ数値の強調 */
-.text-damage {
-    color: #dc3545;
-    font-weight: bold;
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-/* トップ3のハイライト */
-.table-warning {
-    background-color: rgba(255, 193, 7, 0.2) !important;
+.card {
+    animation: fadeIn 0.5s ease-out;
 }
 
-/* ロード中のアニメーション */
-.loading {
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    border: 3px solid rgba(0,0,0,.1);
-    border-radius: 50%;
-    border-top-color: #007bff;
-    animation: spin 1s ease-in-out infinite;
+/* Status Badges */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    font-weight: 600;
+    font-size: 0.875rem;
 }
 
-@keyframes spin {
-    to { transform: rotate(360deg); }
+.status-defeated {
+    background: linear-gradient(135deg, var(--success-color) 0%, #059669 100%);
+    color: white;
+}
+
+.status-active {
+    background: linear-gradient(135deg, var(--danger-color) 0%, #dc2626 100%);
+    color: white;
 }
