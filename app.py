@@ -724,7 +724,7 @@ async def get_user_stats(user_id):
 
 
 async def get_attack_holder(boss_key=None, limit=100):
-    """単発最大ダメージランキング（アタックホルダー）"""
+    """アタックホルダー（1回の戦闘での最大ダメージランキング）"""
     if DATABASE_URL is None:
         return [
             {
@@ -749,97 +749,67 @@ async def get_attack_holder(boss_key=None, limit=100):
     
     pool = await init_db_pool()
     async with pool.acquire() as conn:
+        # raid_attack_history テーブルから1回の攻撃での最大ダメージを取得
         if boss_key:
+            # 特定ボスでの最大ダメージランキング
             rows = await conn.fetch("""
-                SELECT 
-                    dp.user_id,
-                    dp.user_name,
-                    MAX(dp.total_damage) as max_single_damage,
-                    dh.boss_name,
-                    dh.defeated_at,
-                    dh.id as defeat_history_id
-                FROM raid_defeat_participants dp
-                JOIN raid_defeat_history dh ON dp.defeat_history_id = dh.id
-                WHERE dh.guild_id=$1 AND dh.boss_key=$2
-                GROUP BY dp.user_id, dp.user_name, dh.boss_name, dh.defeated_at, dh.id
-                HAVING MAX(dp.total_damage) = (
-                    SELECT MAX(dp2.total_damage)
-                    FROM raid_defeat_participants dp2
-                    JOIN raid_defeat_history dh2 ON dp2.defeat_history_id = dh2.id
-                    WHERE dh2.guild_id=$1 AND dh2.boss_key=$2 AND dp2.user_id = dp.user_id
+                WITH max_damages AS (
+                    SELECT 
+                        rah.user_id,
+                        rah.user_name,
+                        rah.damage,
+                        dh.boss_name,
+                        dh.boss_key,
+                        rah.attacked_at,
+                        rah.defeat_history_id,
+                        ROW_NUMBER() OVER (PARTITION BY rah.user_id ORDER BY rah.damage DESC) as rn
+                    FROM raid_attack_history rah
+                    JOIN raid_defeat_history dh ON rah.defeat_history_id = dh.id
+                    WHERE dh.guild_id = $1 AND dh.boss_key = $2
                 )
+                SELECT 
+                    user_id,
+                    user_name,
+                    damage as max_single_damage,
+                    boss_name,
+                    boss_key,
+                    attacked_at as defeated_at,
+                    defeat_history_id
+                FROM max_damages
+                WHERE rn = 1
                 ORDER BY max_single_damage DESC
                 LIMIT $3
             """, GUILD_ID, boss_key, limit)
         else:
+            # 全ボスを対象にした最大ダメージランキング
             rows = await conn.fetch("""
-                SELECT 
-                    dp.user_id,
-                    dp.user_name,
-                    MAX(dp.total_damage) as max_single_damage,
-                    dh.boss_name,
-                    dh.boss_key,
-                    dh.defeated_at,
-                    dh.id as defeat_history_id
-                FROM raid_defeat_participants dp
-                JOIN raid_defeat_history dh ON dp.defeat_history_id = dh.id
-                WHERE dh.guild_id=$1
-                GROUP BY dp.user_id, dp.user_name, dh.boss_name, dh.boss_key, dh.defeated_at, dh.id
-                HAVING MAX(dp.total_damage) = (
-                    SELECT MAX(dp2.total_damage)
-                    FROM raid_defeat_participants dp2
-                    JOIN raid_defeat_history dh2 ON dp2.defeat_history_id = dh2.id
-                    WHERE dh2.guild_id=$1 AND dp2.user_id = dp.user_id
+                WITH max_damages AS (
+                    SELECT 
+                        rah.user_id,
+                        rah.user_name,
+                        rah.damage,
+                        dh.boss_name,
+                        dh.boss_key,
+                        rah.attacked_at,
+                        rah.defeat_history_id,
+                        ROW_NUMBER() OVER (PARTITION BY rah.user_id ORDER BY rah.damage DESC) as rn
+                    FROM raid_attack_history rah
+                    JOIN raid_defeat_history dh ON rah.defeat_history_id = dh.id
+                    WHERE dh.guild_id = $1
                 )
+                SELECT 
+                    user_id,
+                    user_name,
+                    damage as max_single_damage,
+                    boss_name,
+                    boss_key,
+                    attacked_at as defeated_at,
+                    defeat_history_id
+                FROM max_damages
+                WHERE rn = 1
                 ORDER BY max_single_damage DESC
                 LIMIT $2
             """, GUILD_ID, limit)
-        return [dict(r) for r in rows]
-
-
-async def get_fastest_clears(limit=20):
-    """最速討伐記録"""
-    if DATABASE_URL is None:
-        from datetime import timedelta
-        return [
-            {
-                'id': 1,
-                'boss_name': 'フェル・レイク',
-                'defeated_at': datetime.utcnow(),
-                'total_participants': 5,
-                'clear_time': timedelta(minutes=15, seconds=30)
-            },
-            {
-                'id': 2,
-                'boss_name': '時間の番竜',
-                'defeated_at': datetime.utcnow(),
-                'total_participants': 6,
-                'clear_time': timedelta(minutes=28, seconds=45)
-            }
-        ]
-    
-    pool = await init_db_pool()
-    async with pool.acquire() as conn:
-        rows = await conn.fetch("""
-            SELECT 
-                id,
-                guild_id,
-                boss_key,
-                boss_name,
-                boss_max_hp,
-                defeated_at,
-                total_participants,
-                total_damage,
-                (
-                    SELECT MAX(last_attack_at) - MIN(first_attack_at)
-                    FROM raid_defeat_participants
-                    WHERE defeat_history_id = raid_defeat_history.id
-                ) as clear_time
-            FROM raid_defeat_history
-            WHERE guild_id=$1
-            ORDER BY clear_time ASC
-            LIMIT $2
-        """, GUILD_ID, limit)
         return [dict(r) for r in rows]
 
 
@@ -887,16 +857,9 @@ def user_detail(user_id):
 
 @app.route('/attack-holder')
 def attack_holder_page():
-    """アタックホルダー（単発最大ダメージランキング）"""
+    """アタックホルダー（1回の戦闘での最大ダメージランキング）"""
     holders = run_async(get_attack_holder(limit=50))
     return render_template('attack_holder.html', holders=holders)
-
-
-@app.route('/fastest-clears')
-def fastest_clears_page():
-    """最速討伐記録"""
-    clears = run_async(get_fastest_clears(limit=20))
-    return render_template('fastest_clears.html', clears=clears)
 
 
 # ===== API エンドポイント =====
@@ -946,19 +909,12 @@ def api_ranking(guild_id):
 
 @app.route('/api/attack-holder/<int:guild_id>')
 def api_attack_holder(guild_id):
-    """API: アタックホルダー（単発最大ダメージランキング）"""
+    """API: アタックホルダー（1回の戦闘での最大ダメージランキング）"""
     from flask import request
     boss_key = request.args.get('boss_key')
     limit = int(request.args.get('limit', 100))
     holders = run_async(get_attack_holder(boss_key=boss_key, limit=limit))
     return jsonify(holders)
-
-
-@app.route('/api/fastest-clears/<int:guild_id>')
-def api_fastest_clears(guild_id):
-    """API: 最速討伐記録（仕様書準拠）"""
-    clears = run_async(get_fastest_clears(limit=20))
-    return jsonify(clears)
 
 
 @app.route('/api/defeat/<int:defeat_id>/participants')

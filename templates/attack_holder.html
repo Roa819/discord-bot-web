@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}アタックホルダー - 単発最大ダメージランキング{% endblock %}
+{% block title %}アタックホルダー - 1回の戦闘での最大ダメージランキング{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
         <h1 class="mb-3 text-white">アタックホルダー</h1>
-        <p class="text-white-50">各プレイヤーの単発最大ダメージ記録のランキング</p>
+        <p class="text-white-50">1回の戦闘で出たダメージの最大値ランキング</p>
     </div>
 </div>
 
@@ -14,7 +14,7 @@
     <div class="col-12">
         <div class="card">
             <div class="card-header bg-danger text-white">
-                <h5 class="mb-0">単発最大ダメージ TOP 50</h5>
+                <h5 class="mb-0">1回の戦闘での最大ダメージ TOP 50</h5>
             </div>
             <div class="card-body">
                 {% if holders %}
@@ -35,7 +35,7 @@
                             <tr {% if loop.index <= 3 %}class="table-danger"{% endif %}>
                                 <td>
                                     {% if loop.index == 1 %}
-                                        🥇
+                                        🎖️
                                     {% elif loop.index == 2 %}
                                         🥈
                                     {% elif loop.index == 3 %}
@@ -46,6 +46,9 @@
                                 </td>
                                 <td>
                                     <strong>{{ holder.user_name }}</strong>
+                                    {% if loop.index == 1 %}
+                                        <span class="badge bg-danger ms-2">アタックホルダー</span>
+                                    {% endif %}
                                 </td>
                                 <td class="text-end">
                                     <strong class="text-danger fs-5">{{ holder.max_single_damage|format_number }}</strong>
@@ -83,8 +86,7 @@
             <ul class="mb-0">
                 <li>各プレイヤーが1回の戦闘で与えた最大ダメージを記録しています</li>
                 <li>すべてのレイドボスを対象としたランキングです</li>
-                <li>プレイヤーごとの最高記録のみが表示されます</li>
-            </ul>
+                <li>プレイヤーごとの最高記録のみが表示されます</li>                <li><strong>1位の人には「アタックホルダー」の称号が付与されます</strong></li>            </ul>
         </div>
     </div>
 </div>
