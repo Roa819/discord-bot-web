@@ -167,13 +167,16 @@ Data: {{ participant.last_turn_log|tojson(indent=2) }}</pre>
                             </details>
                         </div>
 
+                        <!-- 戦闘ログデータのパース -->
+                        {% set battle_log = participant.last_turn_log|parse_json if participant.last_turn_log is string else participant.last_turn_log %}
+
                         <!-- 戦闘ログ -->
                         <div class="mb-3 p-3" style="background: #36393f; border-radius: 8px;">
                             <h6 style="color: #faa61a; font-weight: bold; margin-bottom: 10px;">📜 戦闘ログ</h6>
                             <div style="font-family: monospace; font-size: 13px; line-height: 1.8;">
-                                {% if participant.last_turn_log and participant.last_turn_log is sequence and participant.last_turn_log is not string %}
+                                {% if battle_log and battle_log is sequence and battle_log is not string %}
                                     <!-- 配列型データを処理 -->
-                                    {% for action in participant.last_turn_log %}
+                                    {% for action in battle_log %}
                                         {% if action.actor == 'player' %}
                                         <div style="color: #dcddde;">
                                             {{ participant.user_name }}の攻撃 → {{ action.damage|format_number }}ダメージ
@@ -193,9 +196,9 @@ Data: {{ participant.last_turn_log|tojson(indent=2) }}</pre>
                         <div class="mb-3 p-3" style="background: #36393f; border-radius: 8px;">
                             <h6 style="color: #43b581; font-weight: bold; margin-bottom: 10px;">📊 戦闘結果</h6>
                             <div style="font-size: 13px; line-height: 1.8;">
-                                {% if participant.last_turn_log and participant.last_turn_log is sequence and participant.last_turn_log is not string %}
+                                {% if battle_log and battle_log is sequence and battle_log is not string %}
                                     {% set ns = namespace(player_dmg=0, boss_dmg=0) %}
-                                    {% for action in participant.last_turn_log %}
+                                    {% for action in battle_log %}
                                         {% if action.actor == 'player' %}
                                             {% set ns.player_dmg = ns.player_dmg + action.damage %}
                                         {% elif action.actor == 'enemy' %}
@@ -218,10 +221,10 @@ Data: {{ participant.last_turn_log|tojson(indent=2) }}</pre>
                         <!-- ボスHP -->
                         <div class="p-3" style="background: #36393f; border-radius: 8px;">
                             <h6 style="color: #dcddde; font-weight: bold; margin-bottom: 10px;">{{ defeat.boss_name }}の残りHP</h6>
-                            {% if participant.last_turn_log and participant.last_turn_log is sequence and participant.last_turn_log is not string %}
+                            {% if battle_log and battle_log is sequence and battle_log is not string %}
                                 <!-- 配列型の場合、最後のボスHPを取得 -->
                                 {% set ns2 = namespace(hp=defeat.boss_max_hp - participant.total_damage, calculated=true) %}
-                                {% for action in participant.last_turn_log %}
+                                {% for action in battle_log %}
                                     {% if action.boss_hp is defined %}
                                         {% set ns2.hp = action.boss_hp %}
                                         {% set ns2.calculated = false %}

@@ -62,6 +62,17 @@ def to_jst_short(value):
     except Exception:
         return str(value)
 
+# カスタムフィルター: JSON文字列をパース
+@app.template_filter('parse_json')
+def parse_json(value):
+    """JSON文字列をPythonオブジェクトに変換"""
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, TypeError):
+            return None
+    return value
+
 # データベース接続プール (読み取り専用)
 db_pool = None
 loop = None
@@ -431,11 +442,17 @@ async def get_defeat_participants(defeat_history_id: int):
         result = []
         for p in participants:
             participant_dict = dict(p)
-            # last_turn_logがJSON文字列の場合はパースする
-            if participant_dict.get('last_turn_log') and isinstance(participant_dict['last_turn_log'], str):
-                try:
-                    participant_dict['last_turn_log'] = json.loads(participant_dict['last_turn_log'])
-                except json.JSONDecodeError:
+            # last_turn_logを確実にパースする
+            log_data = participant_dict.get('last_turn_log')
+            if log_data:
+                # 文字列の場合はパース
+                if isinstance(log_data, str):
+                    try:
+                        participant_dict['last_turn_log'] = json.loads(log_data)
+                    except (json.JSONDecodeError, TypeError):
+                        participant_dict['last_turn_log'] = None
+                # すでにlistやdictの場合はそのまま使用
+                elif not isinstance(log_data, (list, dict)):
                     participant_dict['last_turn_log'] = None
             result.append(participant_dict)
         
