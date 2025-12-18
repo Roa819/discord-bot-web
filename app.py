@@ -529,6 +529,12 @@ async def get_defeat_attack_history(defeat_history_id: int):
                         try:
                             log_data = json.loads(log_data)
                             print(f"DEBUG: Parsed to type: {type(log_data)}, is list: {isinstance(log_data, list)}, length: {len(log_data) if isinstance(log_data, list) else 'N/A'}")
+                            
+                            # 二重エンコードされている場合、もう一度パース
+                            if isinstance(log_data, str):
+                                log_data = json.loads(log_data)
+                                print(f"DEBUG: Double-encoded! Parsed again to type: {type(log_data)}, is list: {isinstance(log_data, list)}")
+                            
                             if isinstance(log_data, list) and len(log_data) > 0:
                                 print(f"DEBUG: First element type: {type(log_data[0])}, is dict: {isinstance(log_data[0], dict)}")
                                 if isinstance(log_data[0], dict):
