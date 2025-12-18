@@ -217,12 +217,10 @@
                         </div>
 
                         <!-- ボスHP -->
+                        <!-- ボスHP -->
                         <div class="p-3" style="background: #36393f; border-radius: 8px;">
                             <h6 style="color: #dcddde; font-weight: bold; margin-bottom: 10px;">{{ defeat.boss_name }}の残りHP</h6>
-                            {% set remaining_hp = participant.last_turn_log.final_hp|default(defeat.boss_max_hp - participant.total_damage) %}
-                            {% set hp_percent = (remaining_hp / defeat.boss_max_hp * 100)|round(1) %}
-                            <div class="progress" style="height: 25px; background: #202225;">
-                               if participant.last_turn_log and participant.last_turn_log.final_hp is defined %}
+                            {% if participant.last_turn_log and participant.last_turn_log.final_hp is defined %}
                                 {% set remaining_hp = participant.last_turn_log.final_hp %}
                             {% else %}
                                 {% set remaining_hp = defeat.boss_max_hp - participant.total_damage %}
@@ -242,7 +240,10 @@
                                 {{ remaining_hp|format_number }} / {{ defeat.boss_max_hp|format_number }}
                                 {% if not (participant.last_turn_log and participant.last_turn_log.final_hp is defined) %}
                                     <span style="color: #f04747; font-size: 11px;">[計算値]</span>
-                                {% endif %
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
                     <div class="modal-footer" style="background: #202225; border-top: 1px solid #36393f;">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
                     </div>
