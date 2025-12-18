@@ -6,6 +6,8 @@ Discord Bot Web Viewer - 完全読み取り専用
 import os
 import asyncio
 import threading
+import signal
+import atexit
 from datetime import datetime
 from dotenv import load_dotenv
 from flask import Flask, render_template, jsonify
@@ -61,6 +63,30 @@ async def init_db_pool():
             command_timeout=10
         )
     return db_pool
+
+
+async def close_db_pool():
+    """データベース接続プールをクローズ"""
+    global db_pool
+    if db_pool is not None and not db_pool._closed:
+        await db_pool.close()
+        db_pool = None
+
+
+def cleanup():
+    """アプリケーション終了時のクリーンアップ"""
+    global loop
+    if loop and not loop.is_closed():
+        try:
+            loop.run_until_complete(close_db_pool())
+        except Exception:
+            pass
+
+
+def signal_handler(signum, frame):
+    """シグナルハンドラー"""
+    cleanup()
+    exit(0)
 
 
 async def get_active_bosses():
@@ -195,6 +221,12 @@ def api_rankings():
 def health():
     """ヘルスチェック (Railwayモニタリング用)"""
     return jsonify({"status": "ok", "timestamp": datetime.utcnow().isoformat()})
+
+
+# クリーンアップとシグナルハンドラーを登録
+atexit.register(cleanup)
+signal.signal(signal.SIGTERM, signal_handler)
+signal.signal(signal.SIGINT, signal_handler)
 
 
 if __name__ == '__main__':
