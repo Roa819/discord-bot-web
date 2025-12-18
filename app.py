@@ -532,6 +532,7 @@ async def get_defeat_attack_history(defeat_history_id: int):
                                 'user_name': p['user_name'],
                                 'damage': action.get('damage', 0),
                                 'is_crit': action.get('is_crit', False),
+                                'is_miss': action.get('is_miss', False),
                                 'attacked_at': p['first_attack_at'],  # 正確な時刻は不明
                                 'sequence': len(history) + 1
                             })
