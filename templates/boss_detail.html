@@ -155,27 +155,28 @@
                         <!-- プレイヤーステータス -->
                         <div class="mb-3 p-3" style="background: #36393f; border-radius: 8px;">
                             <h6 style="color: #00aff4; font-weight: bold; margin-bottom: 10px;">{{ participant.user_name }}のステータス</h6>
-                            {% if participant.last_turn_log.stats %}
+                            {% if participant.last_turn_log and participant.last_turn_log.stats %}
                             <div style="font-family: monospace; font-size: 13px; line-height: 1.6;">
-                                HP: {{ participant.last_turn_log.stats.hp|default(10) }} / 
-                                STR: {{ participant.last_turn_log.stats.str|default(17) }} / 
-                                DEX: {{ participant.last_turn_log.stats.dex|default(16) }} / 
-                                AGI: {{ participant.last_turn_log.stats.agi|default(11) }} / 
-                                INT: {{ participant.last_turn_log.stats.int|default(11) }} / 
-                                VIT: {{ participant.last_turn_log.stats.vit|default(6) }} / 
-                                LUK: {{ participant.last_turn_log.stats.luk|default(6) }}
+                                HP: {{ participant.last_turn_log.stats.hp }} / 
+                                STR: {{ participant.last_turn_log.stats.str }} / 
+                                DEX: {{ participant.last_turn_log.stats.dex }} / 
+                                AGI: {{ participant.last_turn_log.stats.agi }} / 
+                                INT: {{ participant.last_turn_log.stats.int }} / 
+                                VIT: {{ participant.last_turn_log.stats.vit }} / 
+                                LUK: {{ participant.last_turn_log.stats.luk }}
                             </div>
                             {% else %}
-                            <div style="font-family: monospace; font-size: 13px; line-height: 1.6;">
-                                HP: 10 / STR: 17 / DEX: 16 / AGI: 11 / INT: 11 / VIT: 6 / LUK: 6
+                            <div style="font-family: monospace; font-size: 13px; line-height: 1.6; color: #f04747;">
+                                [データなし - last_turn_log.stats が保存されていません]
                             </div>
+                            <pre style="font-size: 11px; color: #72767d;">{{ participant.last_turn_log }}</pre>
                             {% endif %}
                             
-                            {% if participant.last_turn_log.equipment %}
+                            {% if participant.last_turn_log and participant.last_turn_log.equipment %}
                             <div class="mt-2" style="font-size: 13px;">
-                                <div style="color: #b9bbbe;">🗡️ 装備中: {{ participant.last_turn_log.equipment.name|default('夜の女王') }}</div>
+                                <div style="color: #b9bbbe;">🗡️ 装備中: {{ participant.last_turn_log.equipment.name }}</div>
                                 <div style="color: #72767d; font-size: 12px; margin-left: 20px;">
-                                    {{ participant.last_turn_log.equipment.effect|default('STR +6 → 17 (+6%) / INT +1 → 11 (-5%)') }}
+                                    {{ participant.last_turn_log.equipment.effect }}
                                 </div>
                             </div>
                             {% endif %}
@@ -185,15 +186,18 @@
                         <div class="mb-3 p-3" style="background: #36393f; border-radius: 8px;">
                             <h6 style="color: #faa61a; font-weight: bold; margin-bottom: 10px;">📜 戦闘ログ</h6>
                             <div style="font-family: monospace; font-size: 13px; line-height: 1.8;">
-                                {% if participant.last_turn_log.turns %}
+                                {% if participant.last_turn_log and participant.last_turn_log.turns %}
                                     {% for turn in participant.last_turn_log.turns %}
                                     <div style="color: #dcddde;">
                                         {{ participant.user_name }}の攻撃 → {{ turn.damage|format_number }}ダメージ
                                     </div>
                                     {% endfor %}
                                 {% else %}
-                                    <div style="color: #dcddde;">
-                                        {{ participant.user_name }}の攻撃 → {{ participant.total_damage|format_number }}ダメージ
+                                    <div style="color: #f04747;">
+                                        [データなし - last_turn_log.turns が保存されていません]
+                                    </div>
+                                    <div style="color: #72767d; font-size: 12px; margin-top: 5px;">
+                                        参加者の総ダメージ: {{ participant.total_damage|format_number }}
                                     </div>
                                 {% endif %}
                             </div>
@@ -204,14 +208,11 @@
                             <h6 style="color: #43b581; font-weight: bold; margin-bottom: 10px;">📊 戦闘結果</h6>
                             <div style="font-size: 13px; line-height: 1.8;">
                                 <div style="color: #dcddde;">{{ participant.user_name }}の攻撃：合計 {{ participant.total_damage|format_number }}ダメージ</div>
-                                <div style="color: #dcddde;">{{ defeat.boss_name }}の攻撃：合計 
-                                    {% if participant.last_turn_log.boss_total_damage %}
-                                        {{ participant.last_turn_log.boss_total_damage|format_number }}
-                                    {% else %}
-                                        {{ (participant.total_damage * 0.9)|int|format_number }}
-                                    {% endif %}
-                                    ダメージ
-                                </div>
+                                {% if participant.last_turn_log and participant.last_turn_log.boss_total_damage %}
+                                    <div style="color: #dcddde;">{{ defeat.boss_name }}の攻撃：合計 {{ participant.last_turn_log.boss_total_damage|format_number }}ダメージ</div>
+                                {% else %}
+                                    <div style="color: #f04747;">{{ defeat.boss_name }}の攻撃：[データなし]</div>
+                                {% endif %}
                             </div>
                         </div>
 
@@ -219,6 +220,13 @@
                         <div class="p-3" style="background: #36393f; border-radius: 8px;">
                             <h6 style="color: #dcddde; font-weight: bold; margin-bottom: 10px;">{{ defeat.boss_name }}の残りHP</h6>
                             {% set remaining_hp = participant.last_turn_log.final_hp|default(defeat.boss_max_hp - participant.total_damage) %}
+                            {% set hp_percent = (remaining_hp / defeat.boss_max_hp * 100)|round(1) %}
+                            <div class="progress" style="height: 25px; background: #202225;">
+                               if participant.last_turn_log and participant.last_turn_log.final_hp is defined %}
+                                {% set remaining_hp = participant.last_turn_log.final_hp %}
+                            {% else %}
+                                {% set remaining_hp = defeat.boss_max_hp - participant.total_damage %}
+                            {% endif %}
                             {% set hp_percent = (remaining_hp / defeat.boss_max_hp * 100)|round(1) %}
                             <div class="progress" style="height: 25px; background: #202225;">
                                 <div class="progress-bar bg-success" role="progressbar" 
@@ -232,9 +240,9 @@
                             </div>
                             <div class="text-center mt-2" style="color: #b9bbbe; font-size: 14px;">
                                 {{ remaining_hp|format_number }} / {{ defeat.boss_max_hp|format_number }}
-                            </div>
-                        </div>
-                    </div>
+                                {% if not (participant.last_turn_log and participant.last_turn_log.final_hp is defined) %}
+                                    <span style="color: #f04747; font-size: 11px;">[計算値]</span>
+                                {% endif %
                     <div class="modal-footer" style="background: #202225; border-top: 1px solid #36393f;">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
                     </div>
