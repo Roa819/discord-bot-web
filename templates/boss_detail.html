@@ -241,7 +241,16 @@
                                     {% else %}
                                         <div style="color: #72767d;">{{ defeat.boss_name }}の攻撃：記録なし</div>
                                     {% endif %}
-                               set remaining_hp = defeat.boss_max_hp - participant.total_damage %}
+                                {% else %}
+                                    <div style="color: #f04747;">戦闘ログが保存されていません</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- ボスHP -->
+                        <div class="p-3" style="background: #36393f; border-radius: 8px;">
+                            <h6 style="color: #dcddde; font-weight: bold; margin-bottom: 10px;">{{ defeat.boss_name }}の残りHP</h6>
+                            {% set remaining_hp = defeat.boss_max_hp - participant.total_damage %}
                             {% set is_calculated = true %}
                             
                             {% if participant.last_turn_log %}
@@ -262,41 +271,17 @@
                             {% set hp_percent = (remaining_hp / defeat.boss_max_hp * 100)|round(1) %}
                             <div class="progress" style="height: 25px; background: #202225;">
                                 <div class="progress-bar bg-success" role="progressbar" 
-                                     style="width: {{ hp_percent }}%; background: linear-gradient(90deg, #43b581 0%, #3ca374 100%) !important;"
+                                     style="width: {{ hp_percent }}%;"
                                      aria-valuenow="{{ hp_percent }}" aria-valuemin="0" aria-valuemax="100">
                                 </div>
                                 <div class="progress-bar bg-danger" role="progressbar" 
-                                     style="width: {{ 100 - hp_percent }}%; background: linear-gradient(90deg, #f04747 0%, #d84040 100%) !important;"
+                                     style="width: {{ 100 - hp_percent }}%;"
                                      aria-valuenow="{{ 100 - hp_percent }}" aria-valuemin="0" aria-valuemax="100">
                                 </div>
                             </div>
                             <div class="text-center mt-2" style="color: #b9bbbe; font-size: 14px;">
                                 {{ remaining_hp|format_number }} / {{ defeat.boss_max_hp|format_number }}
-                                {% if is_calculated
-
-                        <!-- ボスHP -->
-                        <!-- ボスHP -->
-                        <div class="p-3" style="background: #36393f; border-radius: 8px;">
-                            <h6 style="color: #dcddde; font-weight: bold; margin-bottom: 10px;">{{ defeat.boss_name }}の残りHP</h6>
-                            {% if participant.last_turn_log and participant.last_turn_log.final_hp is defined %}
-                                {% set remaining_hp = participant.last_turn_log.final_hp %}
-                            {% else %}
-                                {% set remaining_hp = defeat.boss_max_hp - participant.total_damage %}
-                            {% endif %}
-                            {% set hp_percent = (remaining_hp / defeat.boss_max_hp * 100)|round(1) %}
-                            <div class="progress" style="height: 25px; background: #202225;">
-                                <div class="progress-bar bg-success" role="progressbar" 
-                                     style="width: {{ hp_percent }}%; background: linear-gradient(90deg, #43b581 0%, #3ca374 100%) !important;"
-                                     aria-valuenow="{{ hp_percent }}" aria-valuemin="0" aria-valuemax="100">
-                                </div>
-                                <div class="progress-bar bg-danger" role="progressbar" 
-                                     style="width: {{ 100 - hp_percent }}%; background: linear-gradient(90deg, #f04747 0%, #d84040 100%) !important;"
-                                     aria-valuenow="{{ 100 - hp_percent }}" aria-valuemin="0" aria-valuemax="100">
-                                </div>
-                            </div>
-                            <div class="text-center mt-2" style="color: #b9bbbe; font-size: 14px;">
-                                {{ remaining_hp|format_number }} / {{ defeat.boss_max_hp|format_number }}
-                                {% if not (participant.last_turn_log and participant.last_turn_log.final_hp is defined) %}
+                                {% if is_calculated %}
                                     <span style="color: #f04747; font-size: 11px;">[計算値]</span>
                                 {% endif %}
                             </div>
