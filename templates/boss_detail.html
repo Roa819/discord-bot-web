@@ -214,6 +214,20 @@
                                     {% else %}
                                         <div style="color: #72767d;">
                                             ログ形式を解析できません
+                                        </div>
+                                    {% endif %}
+                                {% else %}
+                                    <div style="color: #f04747;">
+                                        戦闘ログが保存されていません
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- 戦闘結果 -->
+                        <div class="mb-3 p-3" style="background: #36393f; border-radius: 8px;">
+                            <h6 style="color: #43b581; font-weight: bold; margin-bottom: 10px;">📊 戦闘結果</h6>
+                            <div style="font-size: 13px; line-height: 1.8;">
                                 {% if participant.last_turn_log %}
                                     {% set player_damage = 0 %}
                                     {% set boss_damage = 0 %}
