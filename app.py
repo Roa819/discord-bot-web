@@ -500,9 +500,6 @@ async def get_defeat_attack_history(defeat_history_id: int):
                     SELECT 
                         user_id,
                         user_name,
-                        damage,
-                        is_crit,
-                        is_miss,
                         attacked_at,
                         turn_log
                     FROM raid_attack_history
