@@ -460,39 +460,40 @@ async def get_defeat_participants(defeat_history_id: int):
 
 
 async def get_defeat_attack_history(defeat_history_id: int):
-    """討伐履歴の個別攻撃を時系列順に取得"""
-    if not DATABASE_URL:
-        from datetime import datetime, timedelta
-        now = datetime.utcnow()
-        return [
-            {
-                'user_id': 123456789012345678,
-                'user_name': 'Player1',
-                'damage': 84,
-                'is_crit': True,
-                'attacked_at': now - timedelta(minutes=30),
-                'sequence': 1
-            },
-            {
-                'user_id': 234567890123456789,
-                'user_name': 'Player2',
-                'damage': 56,
-                'is_crit': False,
-                'attacked_at': now - timedelta(minutes=29),
-                'sequence': 2
-            },
-            {
-                'user_id': 123456789012345678,
-                'user_name': 'Player1',
-                'damage': 56,
-                'is_crit': False,
-                'attacked_at': now - timedelta(minutes=28),
-                'sequence': 3
-            }
-        ]
-    
-    pool = await init_db_pool()
-    async with pool.acquire() as conn:
+    """討伐履歴の個別攻撃を時系列順に取得 - Updated v2"""
+    try:
+        if not DATABASE_URL:
+            from datetime import datetime, timedelta
+            now = datetime.utcnow()
+            return [
+                {
+                    'user_id': 123456789012345678,
+                    'user_name': 'Player1',
+                    'damage': 84,
+                    'is_crit': True,
+                    'attacked_at': now - timedelta(minutes=30),
+                    'sequence': 1
+                },
+                {
+                    'user_id': 234567890123456789,
+                    'user_name': 'Player2',
+                    'damage': 56,
+                    'is_crit': False,
+                    'attacked_at': now - timedelta(minutes=29),
+                    'sequence': 2
+                },
+                {
+                    'user_id': 123456789012345678,
+                    'user_name': 'Player1',
+                    'damage': 56,
+                    'is_crit': False,
+                    'attacked_at': now - timedelta(minutes=28),
+                    'sequence': 3
+                }
+            ]
+        
+        pool = await init_db_pool()
+        async with pool.acquire() as conn:
         # まず raid_actions テーブルが存在するか確認
         table_exists = await conn.fetchval("""
             SELECT EXISTS (
@@ -521,20 +522,32 @@ async def get_defeat_attack_history(defeat_history_id: int):
             sequence = 1
             for p in participants:
                 log_data = p['last_turn_log']
-                print(f"DEBUG: User {p['user_name']}, log_data type: {type(log_data)}, data: {log_data}")
+                print(f"DEBUG: User {p['user_name']}, log_data type: {type(log_data)}, is string: {isinstance(log_data, str)}")
+                
+                # 文字列の場合はパース
                 if isinstance(log_data, str):
                     try:
                         log_data = json.loads(log_data)
-                        print(f"DEBUG: Parsed log_data: {log_data}")
+                        print(f"DEBUG: Parsed to type: {type(log_data)}, is list: {isinstance(log_data, list)}, length: {len(log_data) if isinstance(log_data, list) else 'N/A'}")
+                        if isinstance(log_data, list) and len(log_data) > 0:
+                            print(f"DEBUG: First element type: {type(log_data[0])}, is dict: {isinstance(log_data[0], dict)}")
+                            if isinstance(log_data[0], dict):
+                                print(f"DEBUG: First element keys: {log_data[0].keys()}, actor value: {log_data[0].get('actor')}, actor type: {type(log_data[0].get('actor'))}")
                     except (json.JSONDecodeError, TypeError) as e:
                         print(f"DEBUG: JSON parse error: {e}")
                         log_data = None
+                # リストまたは辞書の場合はそのまま使用
+                elif not isinstance(log_data, (list, dict)):
+                    print(f"DEBUG: Unexpected type, setting to None")
+                    log_data = None
                 
                 if log_data and isinstance(log_data, list):
+                    print(f"DEBUG: Processing {len(log_data)} actions for {p['user_name']}")
                     # 全てのアクション（プレイヤーとボス）を追加
                     for idx, action in enumerate(log_data):
                         # プレイヤーの攻撃のみを履歴に追加
                         if action.get('actor') == 'player':
+                            print(f"DEBUG: Adding player action: damage={action.get('damage')}, crit={action.get('is_crit')}, miss={action.get('is_miss')}")
                             history.append({
                                 'user_id': p['user_id'],
                                 'user_name': p['user_name'],
@@ -545,6 +558,8 @@ async def get_defeat_attack_history(defeat_history_id: int):
                                 'sequence': sequence
                             })
                             sequence += 1
+                else:
+                    print(f"DEBUG: log_data is not a list or is None for {p['user_name']}")
             
             print(f"DEBUG: Returning {len(history)} attacks")
             return history
@@ -563,6 +578,12 @@ async def get_defeat_attack_history(defeat_history_id: int):
                 ORDER BY attacked_at
             """, defeat_history_id)
             return [dict(a) for a in actions]
+    
+    except Exception as e:
+        print(f"ERROR in get_defeat_attack_history: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
 
 
 async def get_all_time_rankings():
