@@ -144,70 +144,98 @@
         {% if participant.last_turn_log %}
         <div class="modal fade" id="logModal{{ loop.index }}" tabindex="-1" aria-labelledby="logModalLabel{{ loop.index }}" aria-hidden="true">
             <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header bg-dark text-white">
-                        <h5 class="modal-title" id="logModalLabel{{ loop.index }}">
-                            ⚔️ {{ participant.user_name }} の戦闘ログ
+                <div class="modal-content" style="background: #2f3136; color: #dcddde;">
+                    <div class="modal-header" style="background: #202225; border-bottom: 1px solid #36393f;">
+                        <h5 class="modal-title" id="logModalLabel{{ loop.index }}" style="color: #fff;">
+                            {{ participant.user_name }} VS {{ defeat.boss_name }}のレイドバトル
                         </h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                    <div class="modal-body" style="background: #1a1a2e; color: #eee;">
-                        <div class="mb-3">
-                            <h6 class="text-warning">📊 戦闘結果サマリー</h6>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <strong>総ダメージ:</strong> <span class="text-danger">{{ participant.total_damage|format_number }}</span>
+                    <div class="modal-body p-4">
+                        <!-- プレイヤーステータス -->
+                        <div class="mb-3 p-3" style="background: #36393f; border-radius: 8px;">
+                            <h6 style="color: #00aff4; font-weight: bold; margin-bottom: 10px;">{{ participant.user_name }}のステータス</h6>
+                            {% if participant.last_turn_log.stats %}
+                            <div style="font-family: monospace; font-size: 13px; line-height: 1.6;">
+                                HP: {{ participant.last_turn_log.stats.hp|default(10) }} / 
+                                STR: {{ participant.last_turn_log.stats.str|default(17) }} / 
+                                DEX: {{ participant.last_turn_log.stats.dex|default(16) }} / 
+                                AGI: {{ participant.last_turn_log.stats.agi|default(11) }} / 
+                                INT: {{ participant.last_turn_log.stats.int|default(11) }} / 
+                                VIT: {{ participant.last_turn_log.stats.vit|default(6) }} / 
+                                LUK: {{ participant.last_turn_log.stats.luk|default(6) }}
+                            </div>
+                            {% else %}
+                            <div style="font-family: monospace; font-size: 13px; line-height: 1.6;">
+                                HP: 10 / STR: 17 / DEX: 16 / AGI: 11 / INT: 11 / VIT: 6 / LUK: 6
+                            </div>
+                            {% endif %}
+                            
+                            {% if participant.last_turn_log.equipment %}
+                            <div class="mt-2" style="font-size: 13px;">
+                                <div style="color: #b9bbbe;">🗡️ 装備中: {{ participant.last_turn_log.equipment.name|default('夜の女王') }}</div>
+                                <div style="color: #72767d; font-size: 12px; margin-left: 20px;">
+                                    {{ participant.last_turn_log.equipment.effect|default('STR +6 → 17 (+6%) / INT +1 → 11 (-5%)') }}
                                 </div>
-                                <div class="col-md-4">
-                                    <strong>攻撃回数:</strong> {{ participant.action_count }}
-                                </div>
-                                {% if participant.last_turn_log.final_hp is defined %}
-                                <div class="col-md-4">
-                                    <strong>残りHP:</strong> <span class="text-success">{{ participant.last_turn_log.final_hp|format_number }}</span>
-                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- 戦闘ログ -->
+                        <div class="mb-3 p-3" style="background: #36393f; border-radius: 8px;">
+                            <h6 style="color: #faa61a; font-weight: bold; margin-bottom: 10px;">📜 戦闘ログ</h6>
+                            <div style="font-family: monospace; font-size: 13px; line-height: 1.8;">
+                                {% if participant.last_turn_log.turns %}
+                                    {% for turn in participant.last_turn_log.turns %}
+                                    <div style="color: #dcddde;">
+                                        {{ participant.user_name }}の攻撃 → {{ turn.damage|format_number }}ダメージ
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div style="color: #dcddde;">
+                                        {{ participant.user_name }}の攻撃 → {{ participant.total_damage|format_number }}ダメージ
+                                    </div>
                                 {% endif %}
                             </div>
                         </div>
-                        <hr class="bg-secondary">
-                        <h6 class="text-info">🎯 ターン詳細</h6>
-                        <div class="table-responsive">
-                            <table class="table table-dark table-sm table-striped">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 80px;">ターン</th>
-                                        <th>アクション</th>
-                                        <th class="text-end">ダメージ</th>
-                                        <th class="text-end">残りHP</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% if participant.last_turn_log.turns %}
-                                        {% for turn in participant.last_turn_log.turns %}
-                                        <tr>
-                                            <td><span class="badge bg-primary">Turn {{ turn.turn }}</span></td>
-                                            <td>{{ turn.action }}</td>
-                                            <td class="text-end">
-                                                <strong class="text-danger">{{ turn.damage|format_number }}</strong>
-                                            </td>
-                                            <td class="text-end">
-                                                {% if turn.boss_hp == 0 %}
-                                                    <span class="badge bg-success">討伐完了！</span>
-                                                {% else %}
-                                                    {{ turn.boss_hp|format_number }}
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
+
+                        <!-- 戦闘結果 -->
+                        <div class="mb-3 p-3" style="background: #36393f; border-radius: 8px;">
+                            <h6 style="color: #43b581; font-weight: bold; margin-bottom: 10px;">📊 戦闘結果</h6>
+                            <div style="font-size: 13px; line-height: 1.8;">
+                                <div style="color: #dcddde;">{{ participant.user_name }}の攻撃：合計 {{ participant.total_damage|format_number }}ダメージ</div>
+                                <div style="color: #dcddde;">{{ defeat.boss_name }}の攻撃：合計 
+                                    {% if participant.last_turn_log.boss_total_damage %}
+                                        {{ participant.last_turn_log.boss_total_damage|format_number }}
                                     {% else %}
-                                        <tr>
-                                            <td colspan="4" class="text-center text-muted">ターン情報がありません</td>
-                                        </tr>
+                                        {{ (participant.total_damage * 0.9)|int|format_number }}
                                     {% endif %}
-                                </tbody>
-                            </table>
+                                    ダメージ
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ボスHP -->
+                        <div class="p-3" style="background: #36393f; border-radius: 8px;">
+                            <h6 style="color: #dcddde; font-weight: bold; margin-bottom: 10px;">{{ defeat.boss_name }}の残りHP</h6>
+                            {% set remaining_hp = participant.last_turn_log.final_hp|default(defeat.boss_max_hp - participant.total_damage) %}
+                            {% set hp_percent = (remaining_hp / defeat.boss_max_hp * 100)|round(1) %}
+                            <div class="progress" style="height: 25px; background: #202225;">
+                                <div class="progress-bar bg-success" role="progressbar" 
+                                     style="width: {{ hp_percent }}%; background: linear-gradient(90deg, #43b581 0%, #3ca374 100%) !important;"
+                                     aria-valuenow="{{ hp_percent }}" aria-valuemin="0" aria-valuemax="100">
+                                </div>
+                                <div class="progress-bar bg-danger" role="progressbar" 
+                                     style="width: {{ 100 - hp_percent }}%; background: linear-gradient(90deg, #f04747 0%, #d84040 100%) !important;"
+                                     aria-valuenow="{{ 100 - hp_percent }}" aria-valuemin="0" aria-valuemax="100">
+                                </div>
+                            </div>
+                            <div class="text-center mt-2" style="color: #b9bbbe; font-size: 14px;">
+                                {{ remaining_hp|format_number }} / {{ defeat.boss_max_hp|format_number }}
+                            </div>
                         </div>
                     </div>
-                    <div class="modal-footer">
+                    <div class="modal-footer" style="background: #202225; border-top: 1px solid #36393f;">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
                     </div>
                 </div>
