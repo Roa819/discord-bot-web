@@ -5,6 +5,7 @@ Discord Bot Web Viewer - 完全読み取り専用
 
 import os
 import asyncio
+import threading
 from datetime import datetime
 from dotenv import load_dotenv
 from flask import Flask, render_template, jsonify
@@ -30,16 +31,33 @@ def format_number(value):
 
 # データベース接続プール (読み取り専用)
 db_pool = None
+loop = None
+loop_thread = None
+
+
+def get_or_create_eventloop():
+    """グローバルなイベントループを取得または作成"""
+    global loop, loop_thread
+    if loop is None or loop.is_closed():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop
+
+
+def run_async(coro):
+    """非同期関数を同期的に実行"""
+    loop = get_or_create_eventloop()
+    return loop.run_until_complete(coro)
 
 
 async def init_db_pool():
     """データベース接続プールを初期化 (読み取り専用)"""
     global db_pool
-    if db_pool is None:
+    if db_pool is None or db_pool._closed:
         db_pool = await asyncpg.create_pool(
             DATABASE_URL,
             min_size=1,
-            max_size=3,
+            max_size=5,
             command_timeout=10
         )
     return db_pool
@@ -105,38 +123,38 @@ async def get_all_time_rankings():
 async def get_user_stats(user_id: int):
     """特定ユーザーの統計情報"""
     pool = await init_db_pool()
-    async with pool.acquire() as conn:
-        stats = await conn.fetchrow("""
-            SELECT 
-                COUNT(DISTINCT boss_key) as bosses_participated,
-                SUM(total_damage) as total_damage,
-                SUM(action_count) as total_actions,
-                MAX(total_damage) as max_single_boss_damage
-            FROM raid_participants
-            WHERE guild_id = $1 AND user_id = $2
-        """, GUILD_ID, user_id)
-        return dict(stats) if stats else None
-
-
-# ルート定義
-
-@app.route('/')
-def index():
-    """トップページ：現在のボス状況"""
-    bosses = asyncio.run(get_active_bosses())
+    async witrun_async(get_active_bosses())
     return render_template('index.html', bosses=bosses)
 
 
 @app.route('/boss/<boss_key>')
 def boss_detail(boss_key):
     """ボス詳細：参加者とダメージランキング"""
-    participants = asyncio.run(get_boss_participants(boss_key))
-    bosses = asyncio.run(get_active_bosses())
+    participants = run_async(get_boss_participants(boss_key))
+    bosses = run_async(get_active_bosses())
     
     # 該当ボスの情報を取得
     boss_info = next((b for b in bosses if b['boss_key'] == boss_key), None)
     
     return render_template(
+        'boss_detail.html',
+        boss=boss_info,
+        boss_key=boss_key,
+        participants=participants
+    )
+
+
+@app.route('/rankings')
+def rankings():
+    """全期間ランキング"""
+    rankings = run_async(get_all_time_rankings())
+    return render_template('rankings.html', rankings=rankings)
+
+
+@app.route('/user/<int:user_id>')
+def user_detail(user_id):
+    """ユーザー詳細統計"""
+    stats = run_asyncate(
         'boss_detail.html',
         boss=boss_info,
         boss_key=boss_key,
@@ -163,21 +181,21 @@ def user_detail(user_id):
 @app.route('/api/bosses')
 def api_bosses():
     """API: ボス一覧"""
-    bosses = asyncio.run(get_active_bosses())
+    bosses = run_async(get_active_bosses())
     return jsonify(bosses)
 
 
 @app.route('/api/boss/<boss_key>/participants')
 def api_boss_participants(boss_key):
     """API: ボス参加者"""
-    participants = asyncio.run(get_boss_participants(boss_key))
+    participants = run_async(get_boss_participants(boss_key))
     return jsonify(participants)
 
 
 @app.route('/api/rankings')
 def api_rankings():
     """API: 全期間ランキング"""
-    rankings = asyncio.run(get_all_time_rankings())
+    rankings = run_async(get_all_time_rankings())
     return jsonify(rankings)
 
 
