@@ -8,6 +8,7 @@ import asyncio
 import threading
 import signal
 import atexit
+import json
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
@@ -426,7 +427,19 @@ async def get_defeat_participants(defeat_history_id: int):
             WHERE defeat_history_id = $1
             ORDER BY total_damage DESC
         """, defeat_history_id)
-        return [dict(p) for p in participants]
+        
+        result = []
+        for p in participants:
+            participant_dict = dict(p)
+            # last_turn_logがJSON文字列の場合はパースする
+            if participant_dict.get('last_turn_log') and isinstance(participant_dict['last_turn_log'], str):
+                try:
+                    participant_dict['last_turn_log'] = json.loads(participant_dict['last_turn_log'])
+                except json.JSONDecodeError:
+                    participant_dict['last_turn_log'] = None
+            result.append(participant_dict)
+        
+        return result
 
 
 async def get_all_time_rankings():
