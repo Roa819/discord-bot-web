@@ -494,90 +494,90 @@ async def get_defeat_attack_history(defeat_history_id: int):
         
         pool = await init_db_pool()
         async with pool.acquire() as conn:
-        # まず raid_actions テーブルが存在するか確認
-        table_exists = await conn.fetchval("""
-            SELECT EXISTS (
-                SELECT FROM information_schema.tables 
-                WHERE table_name = 'raid_actions'
-            )
-        """)
-        
-        if not table_exists:
-            # raid_actions がない場合、participants から last_turn_log を展開
-            participants = await conn.fetch("""
-                SELECT 
-                    user_id,
-                    user_name,
-                    last_turn_log,
-                    first_attack_at
-                FROM raid_defeat_participants
-                WHERE defeat_history_id = $1
-                ORDER BY first_attack_at
-            """, defeat_history_id)
+            # まず raid_actions テーブルが存在するか確認
+            table_exists = await conn.fetchval("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_name = 'raid_actions'
+                )
+            """)
             
-            print(f"DEBUG: Found {len(participants)} participants for defeat {defeat_history_id}")
-            
-            # last_turn_log を展開して履歴を作成
-            history = []
-            sequence = 1
-            for p in participants:
-                log_data = p['last_turn_log']
-                print(f"DEBUG: User {p['user_name']}, log_data type: {type(log_data)}, is string: {isinstance(log_data, str)}")
+            if not table_exists:
+                # raid_actions がない場合、participants から last_turn_log を展開
+                participants = await conn.fetch("""
+                    SELECT 
+                        user_id,
+                        user_name,
+                        last_turn_log,
+                        first_attack_at
+                    FROM raid_defeat_participants
+                    WHERE defeat_history_id = $1
+                    ORDER BY first_attack_at
+                """, defeat_history_id)
                 
-                # 文字列の場合はパース
-                if isinstance(log_data, str):
-                    try:
-                        log_data = json.loads(log_data)
-                        print(f"DEBUG: Parsed to type: {type(log_data)}, is list: {isinstance(log_data, list)}, length: {len(log_data) if isinstance(log_data, list) else 'N/A'}")
-                        if isinstance(log_data, list) and len(log_data) > 0:
-                            print(f"DEBUG: First element type: {type(log_data[0])}, is dict: {isinstance(log_data[0], dict)}")
-                            if isinstance(log_data[0], dict):
-                                print(f"DEBUG: First element keys: {log_data[0].keys()}, actor value: {log_data[0].get('actor')}, actor type: {type(log_data[0].get('actor'))}")
-                    except (json.JSONDecodeError, TypeError) as e:
-                        print(f"DEBUG: JSON parse error: {e}")
+                print(f"DEBUG: Found {len(participants)} participants for defeat {defeat_history_id}")
+                
+                # last_turn_log を展開して履歴を作成
+                history = []
+                sequence = 1
+                for p in participants:
+                    log_data = p['last_turn_log']
+                    print(f"DEBUG: User {p['user_name']}, log_data type: {type(log_data)}, is string: {isinstance(log_data, str)}")
+                    
+                    # 文字列の場合はパース
+                    if isinstance(log_data, str):
+                        try:
+                            log_data = json.loads(log_data)
+                            print(f"DEBUG: Parsed to type: {type(log_data)}, is list: {isinstance(log_data, list)}, length: {len(log_data) if isinstance(log_data, list) else 'N/A'}")
+                            if isinstance(log_data, list) and len(log_data) > 0:
+                                print(f"DEBUG: First element type: {type(log_data[0])}, is dict: {isinstance(log_data[0], dict)}")
+                                if isinstance(log_data[0], dict):
+                                    print(f"DEBUG: First element keys: {log_data[0].keys()}, actor value: {log_data[0].get('actor')}, actor type: {type(log_data[0].get('actor'))}")
+                        except (json.JSONDecodeError, TypeError) as e:
+                            print(f"DEBUG: JSON parse error: {e}")
+                            log_data = None
+                    # リストまたは辞書の場合はそのまま使用
+                    elif not isinstance(log_data, (list, dict)):
+                        print(f"DEBUG: Unexpected type, setting to None")
                         log_data = None
-                # リストまたは辞書の場合はそのまま使用
-                elif not isinstance(log_data, (list, dict)):
-                    print(f"DEBUG: Unexpected type, setting to None")
-                    log_data = None
+                    
+                    if log_data and isinstance(log_data, list):
+                        print(f"DEBUG: Processing {len(log_data)} actions for {p['user_name']}")
+                        # 全てのアクション（プレイヤーとボス）を追加
+                        for idx, action in enumerate(log_data):
+                            # プレイヤーの攻撃のみを履歴に追加
+                            if action.get('actor') == 'player':
+                                print(f"DEBUG: Adding player action: damage={action.get('damage')}, crit={action.get('is_crit')}, miss={action.get('is_miss')}")
+                                history.append({
+                                    'user_id': p['user_id'],
+                                    'user_name': p['user_name'],
+                                    'damage': action.get('damage', 0),
+                                    'is_crit': action.get('is_crit', False),
+                                    'is_miss': action.get('is_miss', False),
+                                    'attacked_at': p['first_attack_at'],
+                                    'sequence': sequence
+                                })
+                                sequence += 1
+                    else:
+                        print(f"DEBUG: log_data is not a list or is None for {p['user_name']}")
                 
-                if log_data and isinstance(log_data, list):
-                    print(f"DEBUG: Processing {len(log_data)} actions for {p['user_name']}")
-                    # 全てのアクション（プレイヤーとボス）を追加
-                    for idx, action in enumerate(log_data):
-                        # プレイヤーの攻撃のみを履歴に追加
-                        if action.get('actor') == 'player':
-                            print(f"DEBUG: Adding player action: damage={action.get('damage')}, crit={action.get('is_crit')}, miss={action.get('is_miss')}")
-                            history.append({
-                                'user_id': p['user_id'],
-                                'user_name': p['user_name'],
-                                'damage': action.get('damage', 0),
-                                'is_crit': action.get('is_crit', False),
-                                'is_miss': action.get('is_miss', False),
-                                'attacked_at': p['first_attack_at'],
-                                'sequence': sequence
-                            })
-                            sequence += 1
-                else:
-                    print(f"DEBUG: log_data is not a list or is None for {p['user_name']}")
-            
-            print(f"DEBUG: Returning {len(history)} attacks")
-            return history
-        else:
-            # raid_actions テーブルから取得
-            actions = await conn.fetch("""
-                SELECT 
-                    user_id,
-                    user_name,
-                    damage,
-                    is_crit,
-                    attacked_at,
-                    ROW_NUMBER() OVER (ORDER BY attacked_at) as sequence
-                FROM raid_actions
-                WHERE defeat_history_id = $1
-                ORDER BY attacked_at
-            """, defeat_history_id)
-            return [dict(a) for a in actions]
+                print(f"DEBUG: Returning {len(history)} attacks")
+                return history
+            else:
+                # raid_actions テーブルから取得
+                actions = await conn.fetch("""
+                    SELECT 
+                        user_id,
+                        user_name,
+                        damage,
+                        is_crit,
+                        attacked_at,
+                        ROW_NUMBER() OVER (ORDER BY attacked_at) as sequence
+                    FROM raid_actions
+                    WHERE defeat_history_id = $1
+                    ORDER BY attacked_at
+                """, defeat_history_id)
+                return [dict(a) for a in actions]
     
     except Exception as e:
         print(f"ERROR in get_defeat_attack_history: {e}")
