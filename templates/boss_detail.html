@@ -85,9 +85,16 @@
                                     {% if attack.is_crit %}
                                         <span class="badge bg-warning">CRIT</span>
                                     {% endif %}
+                                    {% if attack.is_miss %}
+                                        <span class="badge bg-secondary">MISS</span>
+                                    {% endif %}
                                 </td>
                                 <td class="text-end">
-                                    <strong class="text-danger">{{ attack.damage|format_number }}</strong>
+                                    {% if attack.is_miss %}
+                                        <span class="text-muted">Miss!</span>
+                                    {% else %}
+                                        <strong class="text-danger">{{ attack.damage|format_number }}</strong>
+                                    {% endif %}
                                 </td>
                                 <td>
                                     <small>{{ attack.attacked_at|to_jst_short }}</small>
@@ -98,7 +105,11 @@
                     </table>
                 </div>
                 {% else %}
-                <p class="text-muted mb-0">攻撃履歴がありません</p>
+                <p class="text-muted mb-0">攻撃履歴がありません（データ件数: {{ attack_history|length if attack_history else 0 }}）</p>
+                <details>
+                    <summary style="color: #faa61a; cursor: pointer; font-size: 11px;">デバッグ情報</summary>
+                    <pre style="font-size: 10px;">{{ attack_history|tojson(indent=2) }}</pre>
+                </details>
                 {% endif %}
             </div>
         </div>
@@ -226,13 +237,21 @@ Data: {{ participant.last_turn_log|tojson(indent=2) }}</pre>
                                     {% for action in battle_log %}
                                         {% if action.actor == 'player' %}
                                         <div style="color: #dcddde;">
-                                            {{ participant.user_name }}の攻撃 → {{ action.damage|format_number }}ダメージ
-                                            {% if action.is_crit %}<span style="color: #faa61a;">【クリティカル】</span>{% endif %}
+                                            {% if action.is_miss %}
+                                                {{ participant.user_name }}の攻撃 → <span style="color: #72767d;">Miss!</span>
+                                            {% else %}
+                                                {{ participant.user_name }}の攻撃 → {{ action.damage|format_number }}ダメージ
+                                                {% if action.is_crit %}<span style="color: #faa61a;">【クリティカル】</span>{% endif %}
+                                            {% endif %}
                                         </div>
                                         {% elif action.actor == 'boss' or action.actor == 'enemy' %}
                                         <div style="color: #f04747;">
-                                            {{ defeat.boss_name }}の攻撃 → {{ action.damage|format_number }}ダメージ
-                                            {% if action.is_crit %}<span style="color: #faa61a;">【クリティカル】</span>{% endif %}
+                                            {% if action.is_miss %}
+                                                {{ defeat.boss_name }}の攻撃 → <span style="color: #72767d;">Miss!</span>
+                                            {% else %}
+                                                {{ defeat.boss_name }}の攻撃 → {{ action.damage|format_number }}ダメージ
+                                                {% if action.is_crit %}<span style="color: #faa61a;">【クリティカル】</span>{% endif %}
+                                            {% endif %}
                                         </div>
                                         {% endif %}
                                     {% endfor %}
@@ -251,9 +270,9 @@ Data: {{ participant.last_turn_log|tojson(indent=2) }}</pre>
                                 {% if battle_log and battle_log is sequence and battle_log is not string %}
                                     {% set ns = namespace(player_dmg=0, boss_dmg=0) %}
                                     {% for action in battle_log %}
-                                        {% if action.actor == 'player' %}
+                                        {% if action.actor == 'player' and not action.is_miss %}
                                             {% set ns.player_dmg = ns.player_dmg + action.damage %}
-                                        {% elif action.actor == 'boss' or action.actor == 'enemy' %}
+                                        {% elif (action.actor == 'boss' or action.actor == 'enemy') and not action.is_miss %}
                                             {% set ns.boss_dmg = ns.boss_dmg + action.damage %}
                                         {% endif %}
                                     {% endfor %}
