@@ -494,15 +494,44 @@ async def get_defeat_attack_history(defeat_history_id: int):
         
         pool = await init_db_pool()
         async with pool.acquire() as conn:
-            # まず raid_actions テーブルが存在するか確認
-            table_exists = await conn.fetchval("""
-                SELECT EXISTS (
-                    SELECT FROM information_schema.tables 
-                    WHERE table_name = 'raid_actions'
-                )
-            """)
+            # まず raid_attack_history テーブルから取得を試みる
+            try:
+                attacks = await conn.fetch("""
+                    SELECT 
+                        user_id,
+                        user_name,
+                        damage,
+                        is_crit,
+                        is_miss,
+                        attacked_at,
+                        turn_log
+                    FROM raid_attack_history
+                    WHERE defeat_history_id = $1
+                    ORDER BY attacked_at ASC
+                """, defeat_history_id)
+                
+                if attacks and len(attacks) > 0:
+                    print(f"DEBUG: Found {len(attacks)} attacks from raid_attack_history")
+                    result = []
+                    for attack in attacks:
+                        attack_dict = dict(attack)
+                        # turn_log を解析
+                        turn_log = attack_dict.get('turn_log')
+                        if isinstance(turn_log, str):
+                            try:
+                                turn_log = json.loads(turn_log)
+                                # 二重エンコードされている場合
+                                if isinstance(turn_log, str):
+                                    turn_log = json.loads(turn_log)
+                            except (json.JSONDecodeError, TypeError):
+                                pass
+                        attack_dict['turn_log'] = turn_log
+                        result.append(attack_dict)
+                    return result
+            except Exception as e:
+                print(f"DEBUG: raid_attack_history query failed: {e}, falling back to participants")
             
-            if not table_exists:
+            # フォールバック: raid_attack_history がない場合、participants から last_turn_log を展開
                 # raid_actions がない場合、participants から last_turn_log を展開
                 participants = await conn.fetch("""
                     SELECT 

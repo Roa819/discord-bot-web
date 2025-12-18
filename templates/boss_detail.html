@@ -65,7 +65,112 @@
                 <h5 class="mb-0">📜 戦闘履歴</h5>
             </div>
             <div class="card-body">
-                {% if participants %}
+                {% if attack_history %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th>ユーザー名</th>
+                                <th class="text-end">与ダメージ</th>
+                                <th class="text-end">被ダメージ</th>
+                                <th>戦闘時刻</th>
+                                <th style="width: 100px;">詳細</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for attack in attack_history %}
+                            {% set battle_log = attack.turn_log|parse_json if attack.turn_log is string else attack.turn_log %}
+                            {% set ns = namespace(player_total=0, boss_total=0) %}
+                            {% if battle_log and battle_log is sequence %}
+                                {% for action in battle_log %}
+                                    {% if action.actor == 'player' and not action.is_miss %}
+                                        {% set ns.player_total = ns.player_total + action.damage %}
+                                    {% elif (action.actor == 'boss' or action.actor == 'enemy') and not action.is_miss %}
+                                        {% set ns.boss_total = ns.boss_total + action.damage %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                            
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td><strong>{{ attack.user_name }}</strong></td>
+                                <td class="text-end">
+                                    <strong class="text-danger">{{ ns.player_total|format_number }}</strong>
+                                </td>
+                                <td class="text-end">
+                                    {% if ns.boss_total > 0 %}
+                                        <span class="text-danger">{{ ns.boss_total|format_number }}</span>
+                                    {% else %}
+                                        <span class="text-muted">0</span>
+                                    {% endif %}
+                                </td>
+                                <td><small>{{ attack.attacked_at|to_jst_short }}</small></td>
+                                <td>
+                                    {% if battle_log %}
+                                    <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#battleLog{{ loop.index }}" aria-expanded="false">
+                                        詳細 ▼
+                                    </button>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% if battle_log %}
+                            <tr class="collapse" id="battleLog{{ loop.index }}">
+                                <td colspan="6" style="background: #f8f9fa; padding: 20px;">
+                                    <div class="p-3" style="background: #fff; border-left: 4px solid #0d6efd; border-radius: 4px;">
+                                        <h6 class="text-primary mb-3">
+                                            {{ attack.user_name }} の戦闘ログ
+                                        </h6>
+                                        
+                                        <div style="font-family: 'Courier New', monospace; font-size: 13px; line-height: 2;">
+                                            {% for action in battle_log %}
+                                                {% if action.actor == 'player' %}
+                                                <div style="color: #0d6efd; padding: 4px 0;">
+                                                    ⚔️ {{ attack.user_name }} の攻撃
+                                                    {% if action.is_miss %}
+                                                        → <span style="color: #6c757d; font-weight: bold;">Miss!</span>
+                                                    {% else %}
+                                                        → <span style="color: #dc3545; font-weight: bold;">{{ action.damage }}</span> ダメージ
+                                                        {% if action.is_crit %}<span style="color: #ffc107; font-weight: bold;"> ⭐ クリティカル！</span>{% endif %}
+                                                    {% endif %}
+                                                </div>
+                                                {% elif action.actor == 'boss' or action.actor == 'enemy' %}
+                                                <div style="color: #dc3545; padding: 4px 0; padding-left: 20px;">
+                                                    🔥 {{ defeat.boss_name }} の攻撃
+                                                    {% if action.is_miss %}
+                                                        → <span style="color: #6c757d; font-weight: bold;">Miss!</span>
+                                                    {% else %}
+                                                        → <span style="color: #dc3545; font-weight: bold;">{{ action.damage }}</span> ダメージ
+                                                        {% if action.is_crit %}<span style="color: #ffc107; font-weight: bold;"> ⭐ クリティカル！</span>{% endif %}
+                                                    {% endif %}
+                                                </div>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                        
+                                        <hr class="my-3">
+                                        
+                                        <div class="row text-center">
+                                            <div class="col-6">
+                                                <strong class="text-primary">与ダメージ:</strong>
+                                                <span class="text-danger fs-5">{{ ns.player_total|format_number }}</span>
+                                            </div>
+                                            <div class="col-6">
+                                                <strong class="text-danger">被ダメージ:</strong>
+                                                <span class="text-dark fs-5">{{ ns.boss_total|format_number }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% elif participants %}
                 <div class="table-responsive">
                     <table class="table table-hover table-sm">
                         <thead>
