@@ -218,38 +218,39 @@ Data: {{ participant.last_turn_log|tojson(indent=2) }}</pre>
                         <!-- ボスHP -->
                         <div class="p-3" style="background: #36393f; border-radius: 8px;">
                             <h6 style="color: #dcddde; font-weight: bold; margin-bottom: 10px;">{{ defeat.boss_name }}の残りHP</h6>
-                            {% set remaining_hp = defeat.boss_max_hp - participant.total_damage %}
-                            {% set is_calculated = true %}
-                            
-                            {% if participant.last_turn_log %}
-                                {% if participant.last_turn_log is mapping and participant.last_turn_log.final_hp is defined %}
-                                    {% set remaining_hp = participant.last_turn_log.final_hp %}
-                                    {% set is_calculated = false %}
-                                {% elif participant.last_turn_log is iterable and participant.last_turn_log is not string %}
-                                    <!-- 配列型の場合、最後のボスHPを取得 -->
-                                    {% for action in participant.last_turn_log %}
-                                        {% if action.boss_hp is defined %}
-                                   ns2 = namespace(hp=defeat.boss_max_hp - participant.total_damage, calculated=true) %}
-                            
                             {% if participant.last_turn_log and participant.last_turn_log is sequence and participant.last_turn_log is not string %}
                                 <!-- 配列型の場合、最後のボスHPを取得 -->
+                                {% set ns2 = namespace(hp=defeat.boss_max_hp - participant.total_damage, calculated=true) %}
                                 {% for action in participant.last_turn_log %}
                                     {% if action.boss_hp is defined %}
                                         {% set ns2.hp = action.boss_hp %}
-                                        {% set nsns2.hp / defeat.boss_max_hp * 100)|round(1) %}
-                            <div class="progress" style="height: 25px; background: #202225;">
-                                <div class="progress-bar bg-success" role="progressbar" 
-                                     style="width: {{ hp_percent }}%;"
-                                     aria-valuenow="{{ hp_percent }}" aria-valuemin="0" aria-valuemax="100">
+                                        {% set ns2.calculated = false %}
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% set hp_percent = (ns2.hp / defeat.boss_max_hp * 100)|round(1) %}
+                                <div class="progress" style="height: 25px; background: #202225;">
+                                    <div class="progress-bar bg-success" role="progressbar" 
+                                         style="width: {{ hp_percent }}%;"
+                                         aria-valuenow="{{ hp_percent }}" aria-valuemin="0" aria-valuemax="100">
+                                    </div>
+                                    <div class="progress-bar bg-danger" role="progressbar" 
+                                         style="width: {{ 100 - hp_percent }}%;"
+                                         aria-valuenow="{{ 100 - hp_percent }}" aria-valuemin="0" aria-valuemax="100">
+                                    </div>
                                 </div>
-                                <div class="progress-bar bg-danger" role="progressbar" 
-                                     style="width: {{ 100 - hp_percent }}%;"
-                                     aria-valuenow="{{ 100 - hp_percent }}" aria-valuemin="0" aria-valuemax="100">
+                                <div class="text-center mt-2" style="color: #b9bbbe; font-size: 14px;">
+                                    {{ ns2.hp|format_number }} / {{ defeat.boss_max_hp|format_number }}
+                                    {% if ns2.calculated %}
+                                        <small style="color: #72767d;">(推定値)</small>
+                                    {% endif %}
                                 </div>
-                            </div>
-                            <div class="text-center mt-2" style="color: #b9bbbe; font-size: 14px;">
-                                {{ ns2.hp|format_number }} / {{ defeat.boss_max_hp|format_number }}
-                                {% if ns2.ter" style="background: #202225; border-top: 1px solid #36393f;">
+                            {% else %}
+                                <div style="color: #f04747;">HPデータを表示できません</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="background: #202225; border-top: 1px solid #36393f;">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
                     </div>
                 </div>
