@@ -1,20 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}アタックホルダー - 1回の戦闘での最大ダメージランキング{% endblock %}
+{% block title %}最大ダメージランキング{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12">
-        <h1 class="mb-3 text-white">アタックホルダー</h1>
-        <p class="text-white-50">1回の戦闘で出たダメージの最大値ランキング</p>
-    </div>
-</div>
 
 <div class="row">
     <div class="col-12">
         <div class="card">
             <div class="card-header bg-danger text-white">
-                <h5 class="mb-0">1回の戦闘での最大ダメージ TOP 50</h5>
+                <h5 class="mb-0">最大ダメージランキング</h5>
             </div>
             <div class="card-body">
                 {% if holders %}
