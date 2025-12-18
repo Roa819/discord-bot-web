@@ -496,6 +496,7 @@ async def get_defeat_attack_history(defeat_history_id: int):
         async with pool.acquire() as conn:
             # まず raid_attack_history テーブルから取得を試みる
             try:
+                print(f"DEBUG: Attempting to fetch from raid_attack_history for defeat {defeat_history_id}")
                 attacks = await conn.fetch("""
                     SELECT 
                         user_id,
@@ -507,6 +508,7 @@ async def get_defeat_attack_history(defeat_history_id: int):
                     ORDER BY attacked_at ASC
                 """, defeat_history_id)
                 
+                print(f"DEBUG: Query succeeded, found {len(attacks)} attacks")
                 if attacks and len(attacks) > 0:
                     print(f"DEBUG: Found {len(attacks)} attacks from raid_attack_history")
                     result = []
@@ -524,9 +526,12 @@ async def get_defeat_attack_history(defeat_history_id: int):
                                 pass
                         attack_dict['turn_log'] = turn_log
                         result.append(attack_dict)
+                    print(f"DEBUG: Returning {len(result)} attacks from raid_attack_history")
                     return result
+                else:
+                    print(f"DEBUG: raid_attack_history returned 0 results, falling back to participants")
             except Exception as e:
-                print(f"DEBUG: raid_attack_history query failed: {e}, falling back to participants")
+                print(f"DEBUG: raid_attack_history query failed: {type(e).__name__}: {e}, falling back to participants")
             
             # フォールバック: raid_attack_history がない場合、participants から last_turn_log を展開
                 # raid_actions がない場合、participants から last_turn_log を展開
