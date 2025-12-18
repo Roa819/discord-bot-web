@@ -593,23 +593,8 @@ async def get_defeat_attack_history(defeat_history_id: int):
                     else:
                         print(f"DEBUG: log_data is not a list or is None for {p['user_name']}")
                 
-                print(f"DEBUG: Returning {len(history)} attacks")
+                print(f"DEBUG: Returning {len(history)} attacks from fallback")
                 return history
-            else:
-                # raid_actions テーブルから取得
-                actions = await conn.fetch("""
-                    SELECT 
-                        user_id,
-                        user_name,
-                        damage,
-                        is_crit,
-                        attacked_at,
-                        ROW_NUMBER() OVER (ORDER BY attacked_at) as sequence
-                    FROM raid_actions
-                    WHERE defeat_history_id = $1
-                    ORDER BY attacked_at
-                """, defeat_history_id)
-                return [dict(a) for a in actions]
     
     except Exception as e:
         print(f"ERROR in get_defeat_attack_history: {e}")
