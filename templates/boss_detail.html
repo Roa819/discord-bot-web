@@ -62,63 +62,113 @@
     <div class="col-12">
         <div class="card">
             <div class="card-header bg-info">
-                <h5 class="mb-0">📜 攻撃履歴</h5>
+                <h5 class="mb-0">📜 戦闘履歴</h5>
             </div>
             <div class="card-body">
-                {% if attack_history %}
+                {% if participants %}
                 <div class="table-responsive">
                     <table class="table table-hover table-sm">
                         <thead>
                             <tr>
-                                <th style="width: 80px;">#</th>
+                                <th style="width: 50px;">#</th>
                                 <th>ユーザー名</th>
-                                <th class="text-end">ダメージ</th>
-                                <th>攻撃時刻</th>
+                                <th class="text-end">合計ダメージ</th>
+                                <th class="text-end">攻撃回数</th>
+                                <th>戦闘時刻</th>
+                                <th style="width: 100px;">詳細</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for attack in attack_history %}
+                            {% for participant in participants %}
                             <tr>
                                 <td>{{ loop.index }}</td>
-                                <td>
-                                    <strong>{{ attack.user_name }}</strong>
-                                    {% if attack.is_crit %}
-                                        <span class="badge bg-warning">CRIT</span>
-                                    {% endif %}
-                                    {% if attack.is_miss %}
-                                        <span class="badge bg-secondary">MISS</span>
-                                    {% endif %}
-                                </td>
+                                <td><strong>{{ participant.user_name }}</strong></td>
                                 <td class="text-end">
-                                    {% if attack.is_miss %}
-                                        <span class="text-muted">Miss!</span>
-                                    {% else %}
-                                        <strong class="text-danger">{{ attack.damage|format_number }}</strong>
-                                    {% endif %}
+                                    <strong class="text-danger">{{ participant.total_damage|format_number }}</strong>
                                 </td>
+                                <td class="text-end">{{ participant.action_count }}</td>
+                                <td><small>{{ participant.first_attack_at|to_jst_short }}</small></td>
                                 <td>
-                                    <small>{{ attack.attacked_at|to_jst_short }}</small>
+                                    {% if participant.last_turn_log %}
+                                    <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#battleLog{{ loop.index }}" aria-expanded="false">
+                                        詳細 ▼
+                                    </button>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
                                 </td>
                             </tr>
+                            {% if participant.last_turn_log %}
+                            <tr class="collapse" id="battleLog{{ loop.index }}">
+                                <td colspan="6" style="background: #f8f9fa; padding: 20px;">
+                                    {% set battle_log = participant.last_turn_log|parse_json if participant.last_turn_log is string else participant.last_turn_log %}
+                                    
+                                    <div class="p-3" style="background: #fff; border-left: 4px solid #0d6efd; border-radius: 4px;">
+                                        <h6 class="text-primary mb-3">
+                                            <i class="bi bi-journal-text"></i> {{ participant.user_name }} の戦闘ログ
+                                        </h6>
+                                        
+                                        {% if battle_log and battle_log is sequence and battle_log is not string %}
+                                        <div style="font-family: 'Courier New', monospace; font-size: 13px; line-height: 2;">
+                                            {% for action in battle_log %}
+                                                {% if action.actor == 'player' %}
+                                                <div style="color: #0d6efd; padding: 4px 0;">
+                                                    ⚔️ {{ participant.user_name }} の攻撃
+                                                    {% if action.is_miss %}
+                                                        → <span style="color: #6c757d; font-weight: bold;">Miss!</span>
+                                                    {% else %}
+                                                        → <span style="color: #dc3545; font-weight: bold;">{{ action.damage }}</span> ダメージ
+                                                        {% if action.is_crit %}<span style="color: #ffc107; font-weight: bold;"> ⭐ クリティカル！</span>{% endif %}
+                                                    {% endif %}
+                                                </div>
+                                                {% elif action.actor == 'boss' or action.actor == 'enemy' %}
+                                                <div style="color: #dc3545; padding: 4px 0; padding-left: 20px;">
+                                                    🔥 {{ defeat.boss_name }} の攻撃
+                                                    {% if action.is_miss %}
+                                                        → <span style="color: #6c757d; font-weight: bold;">Miss!</span>
+                                                    {% else %}
+                                                        → <span style="color: #dc3545; font-weight: bold;">{{ action.damage }}</span> ダメージ
+                                                        {% if action.is_crit %}<span style="color: #ffc107; font-weight: bold;"> ⭐ クリティカル！</span>{% endif %}
+                                                    {% endif %}
+                                                </div>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                        
+                                        <hr class="my-3">
+                                        
+                                        {% set ns = namespace(player_dmg=0, boss_dmg=0) %}
+                                        {% for action in battle_log %}
+                                            {% if action.actor == 'player' and not action.is_miss %}
+                                                {% set ns.player_dmg = ns.player_dmg + action.damage %}
+                                            {% elif (action.actor == 'boss' or action.actor == 'enemy') and not action.is_miss %}
+                                                {% set ns.boss_dmg = ns.boss_dmg + action.damage %}
+                                            {% endif %}
+                                        {% endfor %}
+                                        
+                                        <div class="row text-center">
+                                            <div class="col-6">
+                                                <strong class="text-primary">与ダメージ:</strong>
+                                                <span class="text-danger fs-5">{{ ns.player_dmg|format_number }}</span>
+                                            </div>
+                                            <div class="col-6">
+                                                <strong class="text-danger">被ダメージ:</strong>
+                                                <span class="text-dark fs-5">{{ ns.boss_dmg|format_number }}</span>
+                                            </div>
+                                        </div>
+                                        {% else %}
+                                        <p class="text-muted mb-0">戦闘ログがありません</p>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endif %}
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
                 {% else %}
-                <p class="text-muted mb-0">攻撃履歴がありません（データ件数: {{ attack_history|length if attack_history else 0 }}）</p>
-                <details style="margin-top: 10px;">
-                    <summary style="color: #faa61a; cursor: pointer; font-size: 11px;">デバッグ情報</summary>
-                    <pre style="font-size: 10px;">attack_history type: {{ attack_history.__class__.__name__ if attack_history else 'None' }}
-attack_history is None: {{ attack_history is none }}
-attack_history length: {{ attack_history|length if attack_history else 0 }}
-attack_history data: {{ attack_history|tojson(indent=2) }}
-
-participants count: {{ participants|length if participants else 0 }}
-{% if participants %}
-First participant last_turn_log: {{ participants[0].last_turn_log|tojson(indent=2) if participants[0].last_turn_log else 'None' }}
-{% endif %}
-</pre>
-                </details>
+                <p class="text-muted mb-0">参加者情報がありません</p>
                 {% endif %}
             </div>
         </div>
