@@ -123,8 +123,18 @@ async def get_all_time_rankings():
 async def get_user_stats(user_id: int):
     """特定ユーザーの統計情報"""
     pool = await init_db_pool()
-    async witrun_async(get_active_bosses())
-    return render_template('index.html', bosses=bosses)
+    async with pool.acquire() as conn:
+        stats = await conn.fetchrow("""
+            SELECT 
+                user_id,
+                SUM(total_damage) as total_damage,
+                SUM(action_count) as total_actions,
+                COUNT(DISTINCT boss_key) as bosses_participated
+            FROM raid_participants
+            WHERE guild_id = $1 AND user_id = $2
+            GROUP BY user_id
+        """, GUILD_ID, user_id)
+        return dict(stats) if stats else {}
 
 
 @app.route('/boss/<boss_key>')
@@ -154,25 +164,7 @@ def rankings():
 @app.route('/user/<int:user_id>')
 def user_detail(user_id):
     """ユーザー詳細統計"""
-    stats = run_asyncate(
-        'boss_detail.html',
-        boss=boss_info,
-        boss_key=boss_key,
-        participants=participants
-    )
-
-
-@app.route('/rankings')
-def rankings():
-    """全期間ランキング"""
-    rankings = asyncio.run(get_all_time_rankings())
-    return render_template('rankings.html', rankings=rankings)
-
-
-@app.route('/user/<int:user_id>')
-def user_detail(user_id):
-    """ユーザー詳細統計"""
-    stats = asyncio.run(get_user_stats(user_id))
+    stats = run_async(get_user_stats(user_id))
     return render_template('user_detail.html', user_id=user_id, stats=stats)
 
 
