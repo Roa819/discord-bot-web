@@ -6,22 +6,21 @@
 <div class="row mb-4">
     <div class="col-12">
         <a href="/rankings" class="btn btn-secondary mb-3">← ランキングに戻る</a>
-        <h1 class="mb-3">👤 ユーザー統計</h1>
-        <p><strong>ユーザーID:</strong> <code>{{ user_id }}</code></p>
+        <h1 class="mb-3">ユーザー統計</h1>
     </div>
 </div>
 
 {% if stats %}
 <div class="row">
-    <div class="col-md-3 mb-3">
+    <div class="col-md-4 mb-3">
         <div class="card text-center">
             <div class="card-body">
-                <h5 class="card-title text-muted">参加ボス数</h5>
-                <p class="display-4 mb-0">{{ stats.bosses_participated }}</p>
+                <h5 class="card-title text-muted">討伐回数</h5>
+                <p class="display-4 mb-0">{{ stats.total_defeats or 0 }}</p>
             </div>
         </div>
     </div>
-    <div class="col-md-3 mb-3">
+    <div class="col-md-4 mb-3">
         <div class="card text-center">
             <div class="card-body">
                 <h5 class="card-title text-muted">累計ダメージ</h5>
@@ -29,7 +28,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3 mb-3">
+    <div class="col-md-4 mb-3">
         <div class="card text-center">
             <div class="card-body">
                 <h5 class="card-title text-muted">総攻撃回数</h5>
@@ -37,16 +36,57 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3 mb-3">
-        <div class="card text-center">
+</div>
+
+<!-- ボス別統計 -->
+{% if stats.bosses_defeated %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">🗡️ ボス別討伐記録</h5>
+            </div>
             <div class="card-body">
-                <h5 class="card-title text-muted">最大ダメージ</h5>
-                <p class="display-6 text-warning mb-0">{{ stats.max_single_boss_damage|format_number }}</p>
-                <small class="text-muted">単一ボス</small>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ボス名</th>
+                                <th class="text-end">討伐回数</th>
+                                <th class="text-end">累計ダメージ</th>
+                                <th class="text-end">平均ダメージ/回</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for boss in stats.bosses_defeated %}
+                            <tr>
+                                <td>
+                                    <strong>{{ boss.boss_name }}</strong>
+                                </td>
+                                <td class="text-end">
+                                    <span class="badge bg-info">{{ boss.defeat_count }} 回</span>
+                                </td>
+                                <td class="text-end">
+                                    <strong class="text-danger">{{ boss.total_damage|format_number }}</strong>
+                                </td>
+                                <td class="text-end">
+                                    {% if boss.defeat_count > 0 %}
+                                        {{ (boss.total_damage / boss.defeat_count)|round(0)|int|format_number }}
+                                    {% else %}
+                                        0
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 </div>
+{% endif %}
+
 {% else %}
 <div class="alert alert-warning">
     <h4>データが見つかりません</h4>

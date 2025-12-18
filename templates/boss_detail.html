@@ -8,7 +8,7 @@
         <a href="/" class="btn btn-secondary mb-3">← 履歴に戻る</a>
         <h1 class="mb-3 text-white">
             {% if defeat %}
-                ✅ {{ defeat.boss_name }} - 討伐 #{{ defeat.id }}
+                {{ defeat.boss_name }} - 討伐 #{{ defeat.id }}
             {% else %}
                 討伐詳細
             {% endif %}
@@ -25,7 +25,6 @@
             </div>
             <div class="card-body">
                 <p><strong>ボス名:</strong> {{ defeat.boss_name }}</p>
-                <p><strong>ボスキー:</strong> <code>{{ defeat.boss_key }}</code></p>
                 <p><strong>最大HP:</strong> {{ defeat.boss_max_hp|int|format_number }}</p>
                 
                 <div class="alert alert-success mb-0">
@@ -47,10 +46,10 @@
                 
                 {% if participants %}
                 <hr>
-                <p class="mb-1"><strong>アタックホルダー:</strong></p>
+                <p class="mb-1"><strong>MVP:</strong></p>
                 <p class="mb-0">
                     <strong>{{ participants[0].user_name }}</strong><br>
-                    <span class="text-danger fs-4">{{ participants[0].max_damage|format_number }}</span> ダメージ（最大単発）
+                    <span class="text-danger fs-4">{{ participants[0].total_damage|format_number }}</span> ダメージ
                 </p>
                 {% endif %}
             </div>
@@ -63,7 +62,7 @@
     <div class="col-12">
         <div class="card">
             <div class="card-header bg-warning">
-                <h5 class="mb-0">🏆 アタックホルダーランキング</h5>
+                <h5 class="mb-0">🏆 ダメージランキング</h5>
             </div>
             <div class="card-body">
                 {% if participants %}
@@ -73,11 +72,12 @@
                             <tr>
                                 <th style="width: 80px;">順位</th>
                                 <th>ユーザー名</th>
-                                <th class="text-end">最大単発</th>
                                 <th class="text-end">合計ダメージ</th>
                                 <th class="text-end">攻撃回数</th>
+                                <th class="text-end">平均ダメージ</th>
                                 <th>初回攻撃</th>
                                 <th>最終攻撃</th>
+                                <th style="width: 100px;">戦闘ログ</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -95,23 +95,35 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <strong>{{ participant.user_name }}</strong><br>
-                                    <small class="text-muted"><code>{{ participant.user_id }}</code></small>
+                                    <strong>{{ participant.user_name }}</strong>
                                 </td>
                                 <td class="text-end">
-                                    <strong class="text-danger fs-5">{{ participant.max_damage|format_number }}</strong>
-                                </td>
-                                <td class="text-end">
-                                    {{ participant.total_damage|format_number }}
+                                    <strong class="text-danger">{{ participant.total_damage|format_number }}</strong>
                                 </td>
                                 <td class="text-end">
                                     {{ participant.action_count|format_number }}
+                                </td>
+                                <td class="text-end">
+                                    {% if participant.action_count > 0 %}
+                                        {{ (participant.total_damage / participant.action_count)|round(1)|format_number }}
+                                    {% else %}
+                                        0
+                                    {% endif %}
                                 </td>
                                 <td>
                                     <small>{{ participant.first_attack_at|to_jst_short }}</small>
                                 </td>
                                 <td>
                                     <small>{{ participant.last_attack_at|to_jst_short }}</small>
+                                </td>
+                                <td>
+                                    {% if participant.last_turn_log %}
+                                        <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#logModal{{ loop.index }}">
+                                            📋 ログ
+                                        </button>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
@@ -125,4 +137,83 @@
         </div>
     </div>
 </div>
+
+<!-- 戦闘ログモーダル -->
+{% if participants %}
+    {% for participant in participants %}
+        {% if participant.last_turn_log %}
+        <div class="modal fade" id="logModal{{ loop.index }}" tabindex="-1" aria-labelledby="logModalLabel{{ loop.index }}" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-dark text-white">
+                        <h5 class="modal-title" id="logModalLabel{{ loop.index }}">
+                            ⚔️ {{ participant.user_name }} の戦闘ログ
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" style="background: #1a1a2e; color: #eee;">
+                        <div class="mb-3">
+                            <h6 class="text-warning">📊 戦闘結果サマリー</h6>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <strong>総ダメージ:</strong> <span class="text-danger">{{ participant.total_damage|format_number }}</span>
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>攻撃回数:</strong> {{ participant.action_count }}
+                                </div>
+                                {% if participant.last_turn_log.final_hp is defined %}
+                                <div class="col-md-4">
+                                    <strong>残りHP:</strong> <span class="text-success">{{ participant.last_turn_log.final_hp|format_number }}</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <hr class="bg-secondary">
+                        <h6 class="text-info">🎯 ターン詳細</h6>
+                        <div class="table-responsive">
+                            <table class="table table-dark table-sm table-striped">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 80px;">ターン</th>
+                                        <th>アクション</th>
+                                        <th class="text-end">ダメージ</th>
+                                        <th class="text-end">残りHP</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if participant.last_turn_log.turns %}
+                                        {% for turn in participant.last_turn_log.turns %}
+                                        <tr>
+                                            <td><span class="badge bg-primary">Turn {{ turn.turn }}</span></td>
+                                            <td>{{ turn.action }}</td>
+                                            <td class="text-end">
+                                                <strong class="text-danger">{{ turn.damage|format_number }}</strong>
+                                            </td>
+                                            <td class="text-end">
+                                                {% if turn.boss_hp == 0 %}
+                                                    <span class="badge bg-success">討伐完了！</span>
+                                                {% else %}
+                                                    {{ turn.boss_hp|format_number }}
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="4" class="text-center text-muted">ターン情報がありません</td>
+                                        </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    {% endfor %}
+{% endif %}
 {% endblock %}

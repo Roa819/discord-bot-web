@@ -5,8 +5,8 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <h1 class="mb-3">⚔️ レイドボス討伐履歴</h1>
-        <p class="text-white-50">過去に討伐されたレイドボスの記録一覧</p>
+        <h1 class="mb-3">レイドボス討伐履歴</h1>
+        <p class="text-white-50">過去に討伐されたレイドボスの記録</p>
     </div>
 </div>
 
@@ -16,7 +16,7 @@
     <div class="col-12">
         <div class="card">
             <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">📜 討伐履歴一覧</h5>
+                <h5 class="mb-0">討伐履歴一覧</h5>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -40,8 +40,6 @@
                                 </td>
                                 <td>
                                     <strong>{{ defeat.boss_name }}</strong>
-                                    <br>
-                                    <small class="text-muted"><code>{{ defeat.boss_key }}</code></small>
                                 </td>
                                 <td class="text-end">
                                     {{ defeat.boss_max_hp|int|format_number }}
@@ -57,7 +55,7 @@
                                 </td>
                                 <td>
                                     <a href="/defeat/{{ defeat.id }}" class="btn btn-sm btn-primary">
-                                        📊 詳細
+                                        詳細
                                     </a>
                                 </td>
                             </tr>
@@ -71,7 +69,7 @@
 </div>
 {% else %}
 <div class="alert alert-info">
-    <h4>📭 討伐履歴がありません</h4>
+    <h4>討伐履歴がありません</h4>
     <p class="mb-0">現在、記録されている討伐履歴はありません。</p>
 </div>
 {% endif %}

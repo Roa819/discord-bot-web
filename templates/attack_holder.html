@@ -1,38 +1,38 @@
 {% extends "base.html" %}
 
-{% block title %}全期間ランキング - 討伐記録{% endblock %}
+{% block title %}アタックホルダー - 単発最大ダメージランキング{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <h1 class="mb-3 text-white">全期間ダメージランキング</h1>
-        <p class="text-white-50">全レイドボスを通しての累計ダメージランキングです</p>
+        <h1 class="mb-3 text-white">アタックホルダー</h1>
+        <p class="text-white-50">各プレイヤーの単発最大ダメージ記録のランキング</p>
     </div>
 </div>
 
 <div class="row">
     <div class="col-12">
         <div class="card">
-            <div class="card-header bg-warning">
-                <h5 class="mb-0">TOP 50</h5>
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">単発最大ダメージ TOP 50</h5>
             </div>
             <div class="card-body">
-                {% if rankings %}
+                {% if holders %}
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead>
                             <tr>
                                 <th style="width: 80px;">順位</th>
                                 <th>ユーザー名</th>
-                                <th class="text-end">討伐回数</th>
-                                <th class="text-end">累計ダメージ</th>
-                                <th class="text-end">総攻撃回数</th>
-                                <th class="text-end">平均ダメージ</th>
+                                <th class="text-end">最大ダメージ</th>
+                                <th>対象ボス</th>
+                                <th>記録日時</th>
+                                <th style="width: 120px;">詳細</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for user in rankings %}
-                            <tr {% if loop.index <= 3 %}class="table-warning"{% endif %}>
+                            {% for holder in holders %}
+                            <tr {% if loop.index <= 3 %}class="table-danger"{% endif %}>
                                 <td>
                                     {% if loop.index == 1 %}
                                         🥇
@@ -45,22 +45,22 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <strong>{{ user.user_name }}</strong>
+                                    <strong>{{ holder.user_name }}</strong>
                                 </td>
                                 <td class="text-end">
-                                    {{ user.total_defeats }}
+                                    <strong class="text-danger fs-5">{{ holder.max_single_damage|format_number }}</strong>
                                 </td>
-                                <td class="text-end">
-                                    <strong class="text-danger">{{ user.total_damage|format_number }}</strong>
+                                <td>
+                                    <strong>{{ holder.boss_name }}</strong>
                                 </td>
-                                <td class="text-end">
-                                    {{ user.total_actions|format_number }}
+                                <td>
+                                    <small>{{ holder.defeated_at|to_jst }}</small>
                                 </td>
-                                <td class="text-end">
-                                    {% if user.total_actions > 0 %}
-                                        {{ (user.total_damage / user.total_actions)|round(1)|format_number }}
-                                    {% else %}
-                                        0
+                                <td>
+                                    {% if holder.defeat_history_id %}
+                                        <a href="/defeat/{{ holder.defeat_history_id }}" class="btn btn-sm btn-outline-primary">
+                                            📊 詳細
+                                        </a>
                                     {% endif %}
                                 </td>
                             </tr>
@@ -79,11 +79,11 @@
 <div class="row mt-4">
     <div class="col-12">
         <div class="alert alert-info">
-            <h5>📌 ランキングについて</h5>
+            <h5>💡 アタックホルダーについて</h5>
             <ul class="mb-0">
-                <li>すべてのレイドボスへの攻撃を合算した累計ダメージです</li>
-                <li>平均ダメージは「累計ダメージ ÷ 総攻撃回数」で計算されます</li>
-                <li>データはリアルタイムでDiscordボットのデータベースから取得されます</li>
+                <li>各プレイヤーが1回の戦闘で与えた最大ダメージを記録しています</li>
+                <li>すべてのレイドボスを対象としたランキングです</li>
+                <li>プレイヤーごとの最高記録のみが表示されます</li>
             </ul>
         </div>
     </div>

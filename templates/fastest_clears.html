@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}最速討伐記録{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="mb-3 text-white">最速討伐記録</h1>
+        <p class="text-white-50">初回攻撃から討伐完了までの時間が最も短かった記録</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">最速記録 TOP 20</h5>
+            </div>
+            <div class="card-body">
+                {% if clears %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">順位</th>
+                                <th>ボス名</th>
+                                <th class="text-end">討伐時間</th>
+                                <th class="text-end">参加者数</th>
+                                <th>討伐日時</th>
+                                <th style="width: 120px;">詳細</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for clear in clears %}
+                            <tr {% if loop.index <= 3 %}class="table-success"{% endif %}>
+                                <td>
+                                    {% if loop.index == 1 %}
+                                        🥇
+                                    {% elif loop.index == 2 %}
+                                        🥈
+                                    {% elif loop.index == 3 %}
+                                        🥉
+                                    {% else %}
+                                        {{ loop.index }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <strong>{{ clear.boss_name }}</strong>
+                                </td>
+                                <td class="text-end">
+                                    {% if clear.clear_time %}
+                                        <strong class="text-success fs-5">
+                                            {% set seconds = clear.clear_time.total_seconds()|int %}
+                                            {% set minutes = (seconds // 60)|int %}
+                                            {% set secs = (seconds % 60)|int %}
+                                            {{ minutes }}分{{ secs }}秒
+                                        </strong>
+                                    {% else %}
+                                        <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <span class="badge bg-info">{{ clear.total_participants }} 人</span>
+                                </td>
+                                <td>
+                                    <small>{{ clear.defeated_at|to_jst }}</small>
+                                </td>
+                                <td>
+                                    <a href="/defeat/{{ clear.id }}" class="btn btn-sm btn-outline-primary">
+                                        📊 詳細
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">データがありません</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="alert alert-info">
+            <h5>⏱️ 討伐時間について</h5>
+            <ul class="mb-0">
+                <li>討伐時間は、最初の攻撃から最後の攻撃までの経過時間です</li>
+                <li>参加者数が少なくても短時間で討伐できる場合があります</li>
+                <li>ボスの最大HPや参加者の戦力によって記録は変動します</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
