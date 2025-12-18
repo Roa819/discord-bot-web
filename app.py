@@ -163,6 +163,13 @@ async def get_user_stats(user_id: int):
         return dict(stats) if stats else {}
 
 
+@app.route('/')
+def index():
+    """ホーム：アクティブなボス一覧"""
+    bosses = run_async(get_active_bosses())
+    return render_template('index.html', bosses=bosses)
+
+
 @app.route('/boss/<boss_key>')
 def boss_detail(boss_key):
     """ボス詳細：参加者とダメージランキング"""
