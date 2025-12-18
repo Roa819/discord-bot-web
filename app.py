@@ -386,11 +386,12 @@ async def get_defeat_participants(defeat_history_id: int):
                 user_name,
                 action_count,
                 total_damage,
+                max_damage,
                 first_attack_at,
                 last_attack_at
             FROM raid_defeat_participants
             WHERE defeat_history_id = $1
-            ORDER BY total_damage DESC
+            ORDER BY max_damage DESC
         """, defeat_history_id)
         return [dict(p) for p in participants]
 

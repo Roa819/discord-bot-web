@@ -47,10 +47,10 @@
                 
                 {% if participants %}
                 <hr>
-                <p class="mb-1"><strong>MVP:</strong></p>
+                <p class="mb-1"><strong>アタックホルダー:</strong></p>
                 <p class="mb-0">
                     <strong>{{ participants[0].user_name }}</strong><br>
-                    <span class="text-danger fs-4">{{ participants[0].total_damage|format_number }}</span> ダメージ
+                    <span class="text-danger fs-4">{{ participants[0].max_damage|format_number }}</span> ダメージ（最大単発）
                 </p>
                 {% endif %}
             </div>
@@ -63,7 +63,7 @@
     <div class="col-12">
         <div class="card">
             <div class="card-header bg-warning">
-                <h5 class="mb-0">🏆 ダメージランキング</h5>
+                <h5 class="mb-0">🏆 アタックホルダーランキング</h5>
             </div>
             <div class="card-body">
                 {% if participants %}
@@ -73,9 +73,9 @@
                             <tr>
                                 <th style="width: 80px;">順位</th>
                                 <th>ユーザー名</th>
+                                <th class="text-end">最大単発</th>
                                 <th class="text-end">合計ダメージ</th>
                                 <th class="text-end">攻撃回数</th>
-                                <th class="text-end">平均ダメージ</th>
                                 <th>初回攻撃</th>
                                 <th>最終攻撃</th>
                             </tr>
@@ -99,17 +99,13 @@
                                     <small class="text-muted"><code>{{ participant.user_id }}</code></small>
                                 </td>
                                 <td class="text-end">
-                                    <strong class="text-danger">{{ participant.total_damage|format_number }}</strong>
+                                    <strong class="text-danger fs-5">{{ participant.max_damage|format_number }}</strong>
+                                </td>
+                                <td class="text-end">
+                                    {{ participant.total_damage|format_number }}
                                 </td>
                                 <td class="text-end">
                                     {{ participant.action_count|format_number }}
-                                </td>
-                                <td class="text-end">
-                                    {% if participant.action_count > 0 %}
-                                        {{ (participant.total_damage / participant.action_count)|round(1)|format_number }}
-                                    {% else %}
-                                        0
-                                    {% endif %}
                                 </td>
                                 <td>
                                     <small>{{ participant.first_attack_at|to_jst_short }}</small>
