@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}ユーザー統計 - {{ user_id }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <a href="/rankings" class="btn btn-secondary mb-3">← ランキングに戻る</a>
+        <h1 class="mb-3">👤 ユーザー統計</h1>
+        <p><strong>ユーザーID:</strong> <code>{{ user_id }}</code></p>
+    </div>
+</div>
+
+{% if stats %}
+<div class="row">
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-muted">参加ボス数</h5>
+                <p class="display-4 mb-0">{{ stats.bosses_participated }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-muted">累計ダメージ</h5>
+                <p class="display-6 text-danger mb-0">{{ stats.total_damage|format_number }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-muted">総攻撃回数</h5>
+                <p class="display-6 mb-0">{{ stats.total_actions|format_number }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-muted">最大ダメージ</h5>
+                <p class="display-6 text-warning mb-0">{{ stats.max_single_boss_damage|format_number }}</p>
+                <small class="text-muted">単一ボス</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-warning">
+    <h4>データが見つかりません</h4>
+    <p class="mb-0">このユーザーの統計情報はまだありません。</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}レイドボス一覧 - 討伐記録{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">🎯 レイドボス一覧</h1>
+    </div>
+</div>
+
+{% if bosses %}
+<div class="row">
+    {% for boss in bosses %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card {% if boss.defeated %}border-success{% else %}border-danger{% endif %}">
+            <div class="card-header {% if boss.defeated %}bg-success text-white{% else %}bg-danger text-white{% endif %}">
+                <h5 class="card-title mb-0">
+                    {% if boss.defeated %}
+                        ✅ {{ boss.boss_name }}
+                    {% else %}
+                        ⚔️ {{ boss.boss_name }}
+                    {% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>ボスキー:</strong> <code>{{ boss.boss_key }}</code>
+                </div>
+                
+                {% if boss.defeated %}
+                <div class="alert alert-success mb-2">
+                    <strong>討伐完了！</strong>
+                </div>
+                <div class="mb-2">
+                    <small class="text-muted">討伐日時:</small><br>
+                    {{ boss.defeated_at.strftime('%Y-%m-%d %H:%M:%S') if boss.defeated_at else 'N/A' }}
+                </div>
+                {% else %}
+                <div class="progress mb-3" style="height: 25px;">
+                    {% set hp_percent = (boss.current_hp / boss.max_hp * 100) if boss.max_hp > 0 else 0 %}
+                    <div class="progress-bar bg-danger" role="progressbar" 
+                         style="width: {{ hp_percent }}%"
+                         aria-valuenow="{{ boss.current_hp }}" 
+                         aria-valuemin="0" 
+                         aria-valuemax="{{ boss.max_hp }}">
+                        {{ boss.current_hp|int }} / {{ boss.max_hp|int }}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="mb-2">
+                    <small class="text-muted">出現日時:</small><br>
+                    {{ boss.spawned_at.strftime('%Y-%m-%d %H:%M:%S') if boss.spawned_at else 'N/A' }}
+                </div>
+                
+                <a href="/boss/{{ boss.boss_key }}" class="btn btn-primary w-100 mt-2">
+                    詳細を見る
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info">
+    <h4>レイドボスが見つかりません</h4>
+    <p>現在、記録されているレイドボスはありません。</p>
+</div>
+{% endif %}
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">📊 統計情報</h5>
+                <p class="mb-0">全ボス数: <strong>{{ bosses|length }}</strong></p>
+                <p class="mb-0">討伐済み: <strong>{{ bosses|selectattr('defeated')|list|length }}</strong></p>
+                <p class="mb-0">戦闘中: <strong>{{ bosses|rejectattr('defeated')|list|length }}</strong></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

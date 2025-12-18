@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}{{ boss.boss_name if boss else boss_key }} - ボス詳細{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <a href="/" class="btn btn-secondary mb-3">← ボス一覧に戻る</a>
+        <h1 class="mb-3">
+            {% if boss %}
+                {% if boss.defeated %}✅{% else %}⚔️{% endif %} {{ boss.boss_name }}
+            {% else %}
+                ボス詳細
+            {% endif %}
+        </h1>
+    </div>
+</div>
+
+{% if boss %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">ボス情報</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>ボスキー:</strong> <code>{{ boss.boss_key }}</code></p>
+                <p><strong>最大HP:</strong> {{ boss.max_hp|int|format_number }}</p>
+                
+                {% if boss.defeated %}
+                <div class="alert alert-success mb-0">
+                    <strong>✅ 討伐完了</strong><br>
+                    <small>{{ boss.defeated_at.strftime('%Y-%m-%d %H:%M:%S') if boss.defeated_at else 'N/A' }}</small>
+                </div>
+                {% else %}
+                <p><strong>残りHP:</strong> {{ boss.current_hp|int|format_number }}</p>
+                <div class="progress" style="height: 25px;">
+                    {% set hp_percent = (boss.current_hp / boss.max_hp * 100) if boss.max_hp > 0 else 0 %}
+                    <div class="progress-bar bg-danger" role="progressbar" 
+                         style="width: {{ hp_percent }}%">
+                        {{ "%.1f"|format(hp_percent) }}%
+                    </div>
+                </div>
+                {% endif %}
+                
+                <p class="mt-3 mb-0">
+                    <strong>出現日時:</strong><br>
+                    <small>{{ boss.spawned_at.strftime('%Y-%m-%d %H:%M:%S') if boss.spawned_at else 'N/A' }}</small>
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">参加統計</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>参加者数:</strong> {{ participants|length }} 人</p>
+                <p><strong>総攻撃回数:</strong> {{ participants|sum(attribute='action_count')|format_number }} 回</p>
+                <p><strong>総ダメージ:</strong> {{ participants|sum(attribute='total_damage')|format_number }}</p>
+                
+                {% if participants %}
+                <hr>
+                <p class="mb-1"><strong>最大ダメージ:</strong></p>
+                <p class="mb-0">
+                    <code>{{ participants[0].user_id }}</code><br>
+                    <span class="text-danger fs-4">{{ participants[0].total_damage|format_number }}</span> ダメージ
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0">🏆 ダメージランキング（アタックホルダー）</h5>
+            </div>
+            <div class="card-body">
+                {% if participants %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">順位</th>
+                                <th>ユーザーID</th>
+                                <th class="text-end">合計ダメージ</th>
+                                <th class="text-end">攻撃回数</th>
+                                <th class="text-end">平均ダメージ</th>
+                                <th>初回攻撃</th>
+                                <th>最終攻撃</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for participant in participants %}
+                            <tr {% if loop.index <= 3 %}class="table-warning"{% endif %}>
+                                <td>
+                                    {% if loop.index == 1 %}
+                                        🥇
+                                    {% elif loop.index == 2 %}
+                                        🥈
+                                    {% elif loop.index == 3 %}
+                                        🥉
+                                    {% else %}
+                                        {{ loop.index }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <code>{{ participant.user_id }}</code>
+                                </td>
+                                <td class="text-end">
+                                    <strong class="text-danger">{{ participant.total_damage|format_number }}</strong>
+                                </td>
+                                <td class="text-end">
+                                    {{ participant.action_count|format_number }}
+                                </td>
+                                <td class="text-end">
+                                    {% if participant.action_count > 0 %}
+                                        {{ (participant.total_damage / participant.action_count)|round(1)|format_number }}
+                                    {% else %}
+                                        0
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small>{{ participant.first_attack_at.strftime('%m/%d %H:%M') if participant.first_attack_at else 'N/A' }}</small>
+                                </td>
+                                <td>
+                                    <small>{{ participant.last_attack_at.strftime('%m/%d %H:%M') if participant.last_attack_at else 'N/A' }}</small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">まだ参加者がいません</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 数値フォーマット用のフィルター（Jinjaテンプレート側で処理）
+</script>
+{% endblock %}

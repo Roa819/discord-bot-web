@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}全期間ランキング - 討伐記録{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="mb-3">🏆 全期間ダメージランキング</h1>
+        <p class="text-muted">全レイドボスを通しての累計ダメージランキングです</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0">TOP 50</h5>
+            </div>
+            <div class="card-body">
+                {% if rankings %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">順位</th>
+                                <th>ユーザーID</th>
+                                <th class="text-end">累計ダメージ</th>
+                                <th class="text-end">総攻撃回数</th>
+                                <th class="text-end">参加ボス数</th>
+                                <th class="text-end">平均ダメージ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in rankings %}
+                            <tr {% if loop.index <= 3 %}class="table-warning"{% endif %}>
+                                <td>
+                                    {% if loop.index == 1 %}
+                                        🥇
+                                    {% elif loop.index == 2 %}
+                                        🥈
+                                    {% elif loop.index == 3 %}
+                                        🥉
+                                    {% else %}
+                                        {{ loop.index }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <code>{{ user.user_id }}</code>
+                                </td>
+                                <td class="text-end">
+                                    <strong class="text-danger">{{ user.total_damage|format_number }}</strong>
+                                </td>
+                                <td class="text-end">
+                                    {{ user.total_actions|format_number }}
+                                </td>
+                                <td class="text-end">
+                                    {{ user.bosses_participated }}
+                                </td>
+                                <td class="text-end">
+                                    {% if user.total_actions > 0 %}
+                                        {{ (user.total_damage / user.total_actions)|round(1)|format_number }}
+                                    {% else %}
+                                        0
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">データがありません</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="alert alert-info">
+            <h5>📌 ランキングについて</h5>
+            <ul class="mb-0">
+                <li>すべてのレイドボスへの攻撃を合算した累計ダメージです</li>
+                <li>平均ダメージは「累計ダメージ ÷ 総攻撃回数」で計算されます</li>
+                <li>データはリアルタイムでDiscordボットのデータベースから取得されます</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
