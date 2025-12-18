@@ -52,15 +52,15 @@ async def get_active_bosses():
         bosses = await conn.fetch("""
             SELECT 
                 boss_key,
-                boss_name,
-                current_hp,
-                max_hp,
-                defeated,
-                spawned_at,
+                boss_key as boss_name,
+                boss_hp as current_hp,
+                boss_max_hp as max_hp,
+                (defeated_at IS NOT NULL) as defeated,
+                updated_at as spawned_at,
                 defeated_at
             FROM raid_boss_state
             WHERE guild_id = $1
-            ORDER BY spawned_at DESC
+            ORDER BY updated_at DESC
         """, GUILD_ID)
         return [dict(b) for b in bosses]
 
