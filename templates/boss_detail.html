@@ -155,70 +155,35 @@
                         <!-- プレイヤーステータス -->
                         <div class="mb-3 p-3" style="background: #36393f; border-radius: 8px;">
                             <h6 style="color: #00aff4; font-weight: bold; margin-bottom: 10px;">{{ participant.user_name }}のステータス</h6>
-                            {% if participant.last_turn_log %}
-                                {% if participant.last_turn_log is mapping and participant.last_turn_log.stats %}
-                                    <!-- 新形式: オブジェクト型 -->
-                                    <div style="font-family: monospace; font-size: 13px; line-height: 1.6;">
-                                        HP: {{ participant.last_turn_log.stats.hp }} / 
-                                        STR: {{ participant.last_turn_log.stats.str }} / 
-                                        DEX: {{ participant.last_turn_log.stats.dex }} / 
-                                        AGI: {{ participant.last_turn_log.stats.agi }} / 
-                                        INT: {{ participant.last_turn_log.stats.int }} / 
-                                        VIT: {{ participant.last_turn_log.stats.vit }} / 
-                                        LUK: {{ participant.last_turn_log.stats.luk }}
-                                    </div>
-                                {% else %}
-                                    <!-- 旧形式: 配列型 - ステータス情報なし -->
-                                    <div style="font-family: monospace; font-size: 13px; line-height: 1.6; color: #72767d;">
-                                        ステータス情報は記録されていません
-                                    </div>
-                                {% endif %}
-                                
-                                {% if participant.last_turn_log is mapping and participant.last_turn_log.equipment %}
-                                <div class="mt-2" style="font-size: 13px;">
-                                    <div style="color: #b9bbbe;">🗡️ 装備中: {{ participant.last_turn_log.equipment.name }}</div>
-                                    <div style="color: #72767d; font-size: 12px; margin-left: 20px;">
-                                        {{ participant.last_turn_log.equipment.effect }}
-                                    </div>
-                                </div>
-                                {% endif %}
-                            {% else %}
-                                <div style="font-family: monospace; font-size: 13px; line-height: 1.6; color: #f04747;">
-                                    戦闘ログが保存されていません
-                                </div>
-                            {% endif %}
+                            <div style="font-family: monospace; font-size: 13px; line-height: 1.6; color: #72767d;">
+                                ステータス情報は記録されていません
+                            </div>
+                            <!-- デバッグ情報 -->
+                            <details style="margin-top: 10px;">
+                                <summary style="color: #faa61a; cursor: pointer; font-size: 11px;">データ構造を確認</summary>
+                                <pre style="color: #72767d; font-size: 10px; overflow-x: auto; margin-top: 5px;">Type: {{ participant.last_turn_log.__class__.__name__ }}
+Length: {{ participant.last_turn_log|length if participant.last_turn_log else 0 }}
+Data: {{ participant.last_turn_log|tojson(indent=2) }}</pre>
+                            </details>
                         </div>
 
                         <!-- 戦闘ログ -->
                         <div class="mb-3 p-3" style="background: #36393f; border-radius: 8px;">
                             <h6 style="color: #faa61a; font-weight: bold; margin-bottom: 10px;">📜 戦闘ログ</h6>
                             <div style="font-family: monospace; font-size: 13px; line-height: 1.8;">
-                                {% if participant.last_turn_log %}
-                                    {% if participant.last_turn_log is mapping and participant.last_turn_log.turns %}
-                                        <!-- 新形式: オブジェクト型 -->
-                                        {% for turn in participant.last_turn_log.turns %}
+                                {% if participant.last_turn_log and participant.last_turn_log is sequence and participant.last_turn_log is not string %}
+                                    <!-- 配列型データを処理 -->
+                                    {% for action in participant.last_turn_log %}
+                                        {% if action.actor == 'player' %}
                                         <div style="color: #dcddde;">
-                                            {{ participant.user_name }}の攻撃 → {{ turn.damage|format_number }}ダメージ
+                                            {{ participant.user_name }}の攻撃 → {{ action.damage|format_number }}ダメージ
+                                            {% if action.is_crit %}<span style="color: #faa61a;">【クリティカル】</span>{% endif %}
                                         </div>
-                                        {% endfor %}
-                                    {% elif participant.last_turn_log is iterable and participant.last_turn_log is not string %}
-                                        <!-- 旧形式: 配列型 -->
-                                        {% for action in participant.last_turn_log %}
-                                            {% if action.actor == 'player' %}
-                                            <div style="color: #dcddde;">
-                                                {{ participant.user_name }}の攻撃 → {{ action.damage|format_number }}ダメージ
-                                                {% if action.is_crit %}<span style="color: #faa61a;">【クリティカル】</span>{% endif %}
-                                            </div>
-                                            {% endif %}
-                                        {% endfor %}
-                                    {% else %}
-                                        <div style="color: #72767d;">
-                                            ログ形式を解析できません
-                                        </div>
-                                    {% endif %}
+                                        {% endif %}
+                                    {% endfor %}
                                 {% else %}
                                     <div style="color: #f04747;">
-                                        戦闘ログが保存されていません
+                                        戦闘ログを表示できません
                                     </div>
                                 {% endif %}
                             </div>
@@ -228,35 +193,24 @@
                         <div class="mb-3 p-3" style="background: #36393f; border-radius: 8px;">
                             <h6 style="color: #43b581; font-weight: bold; margin-bottom: 10px;">📊 戦闘結果</h6>
                             <div style="font-size: 13px; line-height: 1.8;">
-                                {% if participant.last_turn_log %}
-                                    {% set player_damage = 0 %}
-                                    {% set boss_damage = 0 %}
-                                    
-                                    {% if participant.last_turn_log is mapping %}
-                                        <!-- 新形式: オブジェクト型 -->
-                                        {% set player_damage = participant.total_damage %}
-                                        {% if participant.last_turn_log.boss_total_damage %}
-                                            {% set boss_damage = participant.last_turn_log.boss_total_damage %}
+                                {% if participant.last_turn_log and participant.last_turn_log is sequence and participant.last_turn_log is not string %}
+                                    {% set ns = namespace(player_dmg=0, boss_dmg=0) %}
+                                    {% for action in participant.last_turn_log %}
+                                        {% if action.actor == 'player' %}
+                                            {% set ns.player_dmg = ns.player_dmg + action.damage %}
+                                        {% elif action.actor == 'enemy' %}
+                                            {% set ns.boss_dmg = ns.boss_dmg + action.damage %}
                                         {% endif %}
-                                    {% elif participant.last_turn_log is iterable and participant.last_turn_log is not string %}
-                                        <!-- 旧形式: 配列型 - 計算する -->
-                                        {% for action in participant.last_turn_log %}
-                                            {% if action.actor == 'player' %}
-                                                {% set player_damage = player_damage + action.damage %}
-                                            {% elif action.actor == 'enemy' %}
-                                                {% set boss_damage = boss_damage + action.damage %}
-                                            {% endif %}
-                                        {% endfor %}
-                                    {% endif %}
+                                    {% endfor %}
                                     
-                                    <div style="color: #dcddde;">{{ participant.user_name }}の攻撃：合計 {{ player_damage|format_number }}ダメージ</div>
-                                    {% if boss_damage > 0 %}
-                                        <div style="color: #dcddde;">{{ defeat.boss_name }}の攻撃：合計 {{ boss_damage|format_number }}ダメージ</div>
+                                    <div style="color: #dcddde;">{{ participant.user_name }}の攻撃：合計 {{ ns.player_dmg|format_number }}ダメージ</div>
+                                    {% if ns.boss_dmg > 0 %}
+                                        <div style="color: #dcddde;">{{ defeat.boss_name }}の攻撃：合計 {{ ns.boss_dmg|format_number }}ダメージ</div>
                                     {% else %}
                                         <div style="color: #72767d;">{{ defeat.boss_name }}の攻撃：記録なし</div>
                                     {% endif %}
                                 {% else %}
-                                    <div style="color: #f04747;">戦闘ログが保存されていません</div>
+                                    <div style="color: #f04747;">戦闘データを表示できません</div>
                                 {% endif %}
                             </div>
                         </div>
@@ -275,14 +229,14 @@
                                     <!-- 配列型の場合、最後のボスHPを取得 -->
                                     {% for action in participant.last_turn_log %}
                                         {% if action.boss_hp is defined %}
-                                            {% set remaining_hp = action.boss_hp %}
-                                            {% set is_calculated = false %}
-                                        {% endif %}
-                                    {% endfor %}
-                                {% endif %}
-                            {% endif %}
+                                   ns2 = namespace(hp=defeat.boss_max_hp - participant.total_damage, calculated=true) %}
                             
-                            {% set hp_percent = (remaining_hp / defeat.boss_max_hp * 100)|round(1) %}
+                            {% if participant.last_turn_log and participant.last_turn_log is sequence and participant.last_turn_log is not string %}
+                                <!-- 配列型の場合、最後のボスHPを取得 -->
+                                {% for action in participant.last_turn_log %}
+                                    {% if action.boss_hp is defined %}
+                                        {% set ns2.hp = action.boss_hp %}
+                                        {% set nsns2.hp / defeat.boss_max_hp * 100)|round(1) %}
                             <div class="progress" style="height: 25px; background: #202225;">
                                 <div class="progress-bar bg-success" role="progressbar" 
                                      style="width: {{ hp_percent }}%;"
@@ -294,14 +248,8 @@
                                 </div>
                             </div>
                             <div class="text-center mt-2" style="color: #b9bbbe; font-size: 14px;">
-                                {{ remaining_hp|format_number }} / {{ defeat.boss_max_hp|format_number }}
-                                {% if is_calculated %}
-                                    <span style="color: #f04747; font-size: 11px;">[計算値]</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer" style="background: #202225; border-top: 1px solid #36393f;">
+                                {{ ns2.hp|format_number }} / {{ defeat.boss_max_hp|format_number }}
+                                {% if ns2.ter" style="background: #202225; border-top: 1px solid #36393f;">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
                     </div>
                 </div>
