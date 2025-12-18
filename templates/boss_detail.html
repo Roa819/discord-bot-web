@@ -106,9 +106,18 @@
                 </div>
                 {% else %}
                 <p class="text-muted mb-0">攻撃履歴がありません（データ件数: {{ attack_history|length if attack_history else 0 }}）</p>
-                <details>
+                <details style="margin-top: 10px;">
                     <summary style="color: #faa61a; cursor: pointer; font-size: 11px;">デバッグ情報</summary>
-                    <pre style="font-size: 10px;">{{ attack_history|tojson(indent=2) }}</pre>
+                    <pre style="font-size: 10px;">attack_history type: {{ attack_history.__class__.__name__ if attack_history else 'None' }}
+attack_history is None: {{ attack_history is none }}
+attack_history length: {{ attack_history|length if attack_history else 0 }}
+attack_history data: {{ attack_history|tojson(indent=2) }}
+
+participants count: {{ participants|length if participants else 0 }}
+{% if participants %}
+First participant last_turn_log: {{ participants[0].last_turn_log|tojson(indent=2) if participants[0].last_turn_log else 'None' }}
+{% endif %}
+</pre>
                 </details>
                 {% endif %}
             </div>

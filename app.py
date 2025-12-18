@@ -514,18 +514,26 @@ async def get_defeat_attack_history(defeat_history_id: int):
                 ORDER BY first_attack_at
             """, defeat_history_id)
             
+            print(f"DEBUG: Found {len(participants)} participants for defeat {defeat_history_id}")
+            
             # last_turn_log を展開して履歴を作成
             history = []
+            sequence = 1
             for p in participants:
                 log_data = p['last_turn_log']
+                print(f"DEBUG: User {p['user_name']}, log_data type: {type(log_data)}, data: {log_data}")
                 if isinstance(log_data, str):
                     try:
                         log_data = json.loads(log_data)
-                    except (json.JSONDecodeError, TypeError):
+                        print(f"DEBUG: Parsed log_data: {log_data}")
+                    except (json.JSONDecodeError, TypeError) as e:
+                        print(f"DEBUG: JSON parse error: {e}")
                         log_data = None
                 
                 if log_data and isinstance(log_data, list):
+                    # 全てのアクション（プレイヤーとボス）を追加
                     for idx, action in enumerate(log_data):
+                        # プレイヤーの攻撃のみを履歴に追加
                         if action.get('actor') == 'player':
                             history.append({
                                 'user_id': p['user_id'],
@@ -533,10 +541,12 @@ async def get_defeat_attack_history(defeat_history_id: int):
                                 'damage': action.get('damage', 0),
                                 'is_crit': action.get('is_crit', False),
                                 'is_miss': action.get('is_miss', False),
-                                'attacked_at': p['first_attack_at'],  # 正確な時刻は不明
-                                'sequence': len(history) + 1
+                                'attacked_at': p['first_attack_at'],
+                                'sequence': sequence
                             })
+                            sequence += 1
             
+            print(f"DEBUG: Returning {len(history)} attacks")
             return history
         else:
             # raid_actions テーブルから取得
