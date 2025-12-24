@@ -3,60 +3,98 @@
 {% block title %}{{ defeat.boss_name if defeat else '討伐詳細' }} - 討伐 #{{ defeat_id }}{% endblock %}
 
 {% block content %}
+
 <div class="row mb-4">
     <div class="col-12">
         <a href="/" class="btn btn-secondary mb-3">← 履歴に戻る</a>
-        <h1 class="mb-3 text-white">
-            {% if defeat %}
-                {{ defeat.boss_name }} - 討伐 #{{ defeat.id }}
-            {% else %}
-                討伐詳細
-            {% endif %}
-        </h1>
-    </div>
-</div>
-
-{% if defeat %}
-<div class="row mb-4">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">ボス情報</h5>
-            </div>
-            <div class="card-body">
-                <p><strong>ボス名:</strong> {{ defeat.boss_name }}</p>
-                <p><strong>最大HP:</strong> {{ defeat.boss_max_hp|int|format_number }}</p>
-                
-                <div class="alert alert-success mb-0">
-                    <strong>✅ 討伐完了</strong><br>
-                    <small>{{ defeat.defeated_at|to_jst }}</small>
+        <div class="card mb-4">
+            <div class="card-body" style="background: #23272e; color: #fff;">
+                <h2 class="mb-2" style="font-size: 1.5rem;">
+                    {{ defeat.boss_name if defeat else 'Monster' }} VS {{ participants[0].user_name if participants else '???' }} の レイドバトル
+                </h2>
+                <div class="row mb-2">
+                    <div class="col-md-6">
+                        <div class="mb-2"><strong>{{ defeat.boss_name if defeat else 'Monster' }} のステータス</strong></div>
+                        <div>HP: {{ defeat.boss_hp if defeat and defeat.boss_hp is defined else '?' }}</div>
+                        <div>
+                            STR: {{ defeat.boss_str if defeat and defeat.boss_str is defined else '?' }} /
+                            DEX: {{ defeat.boss_dex if defeat and defeat.boss_dex is defined else '?' }} /
+                            AGI: {{ defeat.boss_agi if defeat and defeat.boss_agi is defined else '?' }} /
+                            INT: {{ defeat.boss_int if defeat and defeat.boss_int is defined else '?' }} /
+                            VIT: {{ defeat.boss_vit if defeat and defeat.boss_vit is defined else '?' }} /
+                            LUK: {{ defeat.boss_luk if defeat and defeat.boss_luk is defined else '?' }}
+                        </div>
+                        {% if defeat and defeat.boss_equipment %}
+                        <div class="mt-2">🔗装備: {{ defeat.boss_equipment }}</div>
+                        {% endif %}
+                        {% if defeat and defeat.boss_str_buff %}
+                        <div>STR: {{ defeat.boss_str }} → {{ defeat.boss_str_buff.value }} ({{ defeat.boss_str_buff.percent }}%)</div>
+                        {% endif %}
+                        {% if defeat and defeat.boss_vit_buff %}
+                        <div>VIT: {{ defeat.boss_vit }} → {{ defeat.boss_vit_buff.value }} ({{ defeat.boss_vit_buff.percent }}%)</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="mb-2"><strong>📜 戦闘ログ</strong></div>
+                <div style="font-family: 'Courier New', monospace; font-size: 15px; background: #181c22; color: #fff; padding: 12px; border-radius: 6px;">
+                    {% if participants and participants[0].last_turn_log %}
+                        {% set battle_log = participants[0].last_turn_log|parse_json if participants[0].last_turn_log is string else participants[0].last_turn_log %}
+                        {% for action in battle_log %}
+                            {% if action.actor == 'player' %}
+                                {{ participants[0].user_name }} の攻撃 → {{ action.damage }} ダメージ{% if action.is_crit %} ⚡CRITICAL!{% endif %}
+                            {% elif action.actor == 'boss' or action.actor == 'enemy' %}
+                                {{ defeat.boss_name if defeat else 'Monster' }} の攻撃 → {{ action.damage }} ダメージ{% if action.is_crit %} ⚡CRITICAL!{% endif %}
+                            {% endif %}
+                            {% if action.is_follow or action.is_extra %}
+                                <br>🗡️追撃発生！→+{{ action.damage }}ダメージ
+                            {% endif %}
+                            <br>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted">戦闘ログがありません</span>
+                    {% endif %}
+                </div>
+                <div class="mt-3"><strong>📊 戦闘結果</strong></div>
+                <div>
+                    {{ defeat.boss_name if defeat else 'Monster' }} の攻撃：合計 
+                    {% set boss_total = 0 %}
+                    {% set player_total = 0 %}
+                    {% if participants and participants[0].last_turn_log %}
+                        {% set battle_log = participants[0].last_turn_log|parse_json if participants[0].last_turn_log is string else participants[0].last_turn_log %}
+                        {% for action in battle_log %}
+                            {% if (action.actor == 'boss' or action.actor == 'enemy') and not action.is_miss %}
+                                {% set boss_total = boss_total + action.damage %}
+                            {% elif action.actor == 'player' and not action.is_miss %}
+                                {% set player_total = player_total + action.damage %}
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                    {{ boss_total }} ダメージ<br>
+                    {{ participants[0].user_name if participants else '???' }} の攻撃：合計 {{ player_total }} ダメージ
+                </div>
+                <div class="mt-2">{{ participants[0].user_name if participants else '???' }} の残りHP</div>
+                <div style="font-family: 'Courier New', monospace; font-size: 1.2em;">
+                    {% set hp_bar = '' %}
+                    {% set hp_percent = 0 %}
+                    {% if participants and participants[0].hp and participants[0].max_hp %}
+                        {% set hp_percent = (participants[0].hp / participants[0].max_hp * 10) | round(0, 'floor') %}
+                        {% for i in range(0, 10) %}
+                            {% if i < hp_percent %}
+                                {% set hp_bar = hp_bar + '🟩' %}
+                            {% else %}
+                                {% set hp_bar = hp_bar + '🟥' %}
+                            {% endif %}
+                        {% endfor %}
+                        {{ hp_bar }}<br>
+                        {{ participants[0].hp }} / {{ participants[0].max_hp }}
+                    {% else %}
+                        <span class="text-muted">HP情報なし</span>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
-    
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header bg-info text-white">
-                <h5 class="mb-0">参加統計</h5>
-            </div>
-            <div class="card-body">
-                <p><strong>参加者数:</strong> {{ defeat.total_participants }} 人</p>
-                <p><strong>総ダメージ:</strong> {{ defeat.total_damage|int|format_number }}</p>
-                
-                {% if participants %}
-                <hr>
-                <p class="mb-1"><strong>MVP:</strong></p>
-                <p class="mb-0">
-                    <strong>{{ participants[0].user_name }}</strong><br>
-                    <span class="text-danger fs-4">{{ participants[0].total_damage|format_number }}</span> ダメージ
-                </p>
-                {% endif %}
-            </div>
-        </div>
-    </div>
 </div>
-{% endif %}
 
 <div class="row">
     <div class="col-12">
@@ -233,6 +271,7 @@
                                                         {% else %}
                                                             → <span style="color: #dc3545; font-weight: bold;">{{ action.damage }}</span> ダメージ
                                                             {% if action.is_crit %}<span style="color: #ffc107; font-weight: bold;"> ⭐ クリティカル！</span>{% endif %}
+                                                               {% if action.is_follow or action.is_extra %}<span style="color: #20c997; font-weight: bold;">（追撃）</span>{% endif %}
                                                         {% endif %}
                                                     </div>
                                                     {% elif action.actor == 'boss' or action.actor == 'enemy' %}
@@ -243,6 +282,7 @@
                                                         {% else %}
                                                             → <span style="color: #dc3545; font-weight: bold;">{{ action.damage }}</span> ダメージ
                                                             {% if action.is_crit %}<span style="color: #ffc107; font-weight: bold;"> ⭐ クリティカル！</span>{% endif %}
+                                                               {% if action.is_follow or action.is_extra %}<span style="color: #20c997; font-weight: bold;">（追撃）</span>{% endif %}
                                                         {% endif %}
                                                     </div>
                                                     {% endif %}
