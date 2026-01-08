@@ -122,7 +122,7 @@
             <div class="card-body">
                 {% if holders_by_boss %}
                     {% for boss_key, items_by_key in holders_by_boss|groupby('boss_key') %}
-                        {% for boss_level, items in items_by_key|groupby('boss_level') %}
+                        {% for _, items in items_by_key|groupby('boss_level_norm') %}
                             {% set first = items|first %}
                             <div class="mb-4">
                                 <h6 class="mb-3">🛡️ {{ first.boss_name }}{% if first.boss_level %} (Lv.{{ first.boss_level }}){% endif %}</h6>

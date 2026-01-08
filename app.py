@@ -921,6 +921,7 @@ async def get_attack_holder_by_boss(guild_id=None, boss_key=None, boss_level=Non
                     COALESCE(dh.boss_key, rah.boss_key) AS boss_key,
                     COALESCE(dh.boss_name, rah.boss_key) AS boss_name,
                     dh.boss_level,
+                    COALESCE(dh.boss_level, -1) AS boss_level_norm,
                     rah.user_id,
                     rah.user_name,
                     MAX(rah.damage) AS max_single_damage,
@@ -930,17 +931,17 @@ async def get_attack_holder_by_boss(guild_id=None, boss_key=None, boss_level=Non
                 WHERE rah.guild_id = $1
                   AND ($2::text IS NULL OR COALESCE(dh.boss_key, rah.boss_key) = $2)
                   AND ($3::int IS NULL OR dh.boss_level = $3)
-                GROUP BY COALESCE(dh.boss_key, rah.boss_key), COALESCE(dh.boss_name, rah.boss_key), dh.boss_level, rah.user_id, rah.user_name
+                GROUP BY COALESCE(dh.boss_key, rah.boss_key), COALESCE(dh.boss_name, rah.boss_key), dh.boss_level, boss_level_norm, rah.user_id, rah.user_name
             ), ranked AS (
                 SELECT 
                     agg.*,
-                    ROW_NUMBER() OVER (PARTITION BY agg.boss_key, agg.boss_level ORDER BY agg.max_single_damage DESC, agg.user_id) AS rn
+                    ROW_NUMBER() OVER (PARTITION BY agg.boss_key, agg.boss_level_norm ORDER BY agg.max_single_damage DESC, agg.user_id) AS rn
                 FROM agg
             )
             SELECT *
             FROM ranked
             WHERE rn <= $4
-            ORDER BY boss_key, boss_level, rn
+            ORDER BY boss_key, boss_level_norm, rn
         """
 
         query_without_level = """
@@ -949,6 +950,7 @@ async def get_attack_holder_by_boss(guild_id=None, boss_key=None, boss_level=Non
                     COALESCE(dh.boss_key, rah.boss_key) AS boss_key,
                     COALESCE(dh.boss_name, rah.boss_key) AS boss_name,
                     NULL::int AS boss_level,
+                    -1 AS boss_level_norm,
                     rah.user_id,
                     rah.user_name,
                     MAX(rah.damage) AS max_single_damage,
@@ -986,7 +988,15 @@ async def get_attack_holder_by_boss(guild_id=None, boss_key=None, boss_level=Non
                 per_boss_limit
             )
 
-        return [dict(r) for r in rows]
+        # Normalize boss_level for grouping to avoid duplicate sections when NULL
+        result = []
+        for r in rows:
+            item = dict(r)
+            if item.get('boss_level_norm') is None:
+                item['boss_level_norm'] = -1
+            result.append(item)
+
+        return result
 
 
 # ===== ルート定義 =====
