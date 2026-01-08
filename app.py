@@ -790,7 +790,7 @@ async def get_user_stats(guild_id, user_id):
 
 
 async def get_attack_holder(guild_id=None, boss_key=None, limit=100):
-    """アタックホルダー（1回の戦闘での最大ダメージランキング）"""
+    """アタックホルダー（1回の戦闘=攻撃記録での最大ダメージ）"""
     guild = guild_id or GUILD_ID
     limit = max(1, min(int(limit or 100), 500))
 
@@ -803,7 +803,8 @@ async def get_attack_holder(guild_id=None, boss_key=None, limit=100):
                 'boss_name': 'フェル・レイク',
                 'boss_key': 'Fatal_Lake',
                 'defeated_at': datetime.utcnow(),
-                'defeat_history_id': 3
+                'defeat_history_id': 3,
+                'attacked_at': datetime.utcnow(),
             },
             {
                 'user_id': 123456789012345678,
@@ -812,32 +813,34 @@ async def get_attack_holder(guild_id=None, boss_key=None, limit=100):
                 'boss_name': '時間の番竜',
                 'boss_key': 'Timed_Dragon',
                 'defeated_at': datetime.utcnow(),
-                'defeat_history_id': 5
+                'defeat_history_id': 5,
+                'attacked_at': datetime.utcnow(),
             }
         ]
 
     pool = await init_db_pool()
     async with pool.acquire() as conn:
-        # raid_defeat_participants から「1回の討伐での最大ダメージ」を算出（仕様書準拠）
+        # raid_attack_history から単一戦闘の最大ダメージを算出
         if boss_key:
             rows = await conn.fetch(
                 """
                 WITH ranked AS (
                     SELECT 
-                        dp.user_id,
-                        dp.user_name,
-                        dp.total_damage AS max_single_damage,
-                        dh.boss_name,
-                        dh.boss_key,
+                        rah.user_id,
+                        rah.user_name,
+                        rah.damage AS max_single_damage,
+                        COALESCE(dh.boss_name, rah.boss_key) AS boss_name,
+                        COALESCE(dh.boss_key, rah.boss_key) AS boss_key,
                         dh.defeated_at,
-                        dh.id AS defeat_history_id,
+                        rah.attacked_at,
+                        rah.defeat_history_id,
                         ROW_NUMBER() OVER (
-                            PARTITION BY dp.user_id
-                            ORDER BY dp.total_damage DESC, dh.defeated_at DESC, dp.user_id
+                            PARTITION BY rah.user_id
+                            ORDER BY rah.damage DESC, rah.attacked_at DESC, rah.id DESC
                         ) AS rn
-                    FROM raid_defeat_participants dp
-                    JOIN raid_defeat_history dh ON dp.defeat_history_id = dh.id
-                    WHERE dh.guild_id = $1 AND dh.boss_key = $2
+                    FROM raid_attack_history rah
+                    LEFT JOIN raid_defeat_history dh ON rah.defeat_history_id = dh.id
+                    WHERE rah.guild_id = $1 AND COALESCE(dh.boss_key, rah.boss_key) = $2
                 )
                 SELECT * FROM ranked WHERE rn = 1
                 ORDER BY max_single_damage DESC
@@ -845,40 +848,41 @@ async def get_attack_holder(guild_id=None, boss_key=None, limit=100):
                 """,
                 guild,
                 boss_key,
-                limit
+                limit,
             )
         else:
             rows = await conn.fetch(
                 """
                 WITH ranked AS (
                     SELECT 
-                        dp.user_id,
-                        dp.user_name,
-                        dp.total_damage AS max_single_damage,
-                        dh.boss_name,
-                        dh.boss_key,
+                        rah.user_id,
+                        rah.user_name,
+                        rah.damage AS max_single_damage,
+                        COALESCE(dh.boss_name, rah.boss_key) AS boss_name,
+                        COALESCE(dh.boss_key, rah.boss_key) AS boss_key,
                         dh.defeated_at,
-                        dh.id AS defeat_history_id,
+                        rah.attacked_at,
+                        rah.defeat_history_id,
                         ROW_NUMBER() OVER (
-                            PARTITION BY dp.user_id
-                            ORDER BY dp.total_damage DESC, dh.defeated_at DESC, dp.user_id
+                            PARTITION BY rah.user_id
+                            ORDER BY rah.damage DESC, rah.attacked_at DESC, rah.id DESC
                         ) AS rn
-                    FROM raid_defeat_participants dp
-                    JOIN raid_defeat_history dh ON dp.defeat_history_id = dh.id
-                    WHERE dh.guild_id = $1
+                    FROM raid_attack_history rah
+                    LEFT JOIN raid_defeat_history dh ON rah.defeat_history_id = dh.id
+                    WHERE rah.guild_id = $1
                 )
                 SELECT * FROM ranked WHERE rn = 1
                 ORDER BY max_single_damage DESC
                 LIMIT $2
                 """,
                 guild,
-                limit
+                limit,
             )
         return [dict(r) for r in rows]
 
 
 async def get_attack_holder_by_boss(guild_id=None, boss_key=None, boss_level=None, per_boss_limit=5):
-    """ボス別アタックホルダー（各ボス上位N件）"""
+    """ボス別アタックホルダー（各ボス上位N件、1回の戦闘ダメージ）"""
     guild = guild_id or GUILD_ID
     per_boss_limit = max(1, min(per_boss_limit or 5, 10))
 
@@ -890,7 +894,7 @@ async def get_attack_holder_by_boss(guild_id=None, boss_key=None, boss_level=Non
                 'boss_level': 3,
                 'user_id': 111,
                 'user_name': 'Player1',
-                'max_single_damage': 92000,
+                'max_single_damage': 920,
                 'last_defeated_at': datetime.utcnow(),
                 'rn': 1
             },
@@ -900,7 +904,7 @@ async def get_attack_holder_by_boss(guild_id=None, boss_key=None, boss_level=Non
                 'boss_level': 2,
                 'user_id': 222,
                 'user_name': 'Player2',
-                'max_single_damage': 80500,
+                'max_single_damage': 805,
                 'last_defeated_at': datetime.utcnow(),
                 'rn': 1
             }
@@ -911,23 +915,22 @@ async def get_attack_holder_by_boss(guild_id=None, boss_key=None, boss_level=Non
 
     pool = await init_db_pool()
     async with pool.acquire() as conn:
-        # まず boss_level を含むクエリを試し、列が存在しない場合はフォールバック
         query_with_level = """
             WITH agg AS (
                 SELECT 
-                    dh.boss_key,
-                    dh.boss_name,
+                    COALESCE(dh.boss_key, rah.boss_key) AS boss_key,
+                    COALESCE(dh.boss_name, rah.boss_key) AS boss_name,
                     dh.boss_level,
-                    dp.user_id,
-                    dp.user_name,
-                    MAX(dp.total_damage) AS max_single_damage,
-                    MAX(dh.defeated_at) AS last_defeated_at
-                FROM raid_defeat_participants dp
-                JOIN raid_defeat_history dh ON dp.defeat_history_id = dh.id
-                WHERE dh.guild_id = $1
-                  AND ($2::text IS NULL OR dh.boss_key = $2)
+                    rah.user_id,
+                    rah.user_name,
+                    MAX(rah.damage) AS max_single_damage,
+                    MAX(COALESCE(dh.defeated_at, rah.attacked_at)) AS last_defeated_at
+                FROM raid_attack_history rah
+                LEFT JOIN raid_defeat_history dh ON rah.defeat_history_id = dh.id
+                WHERE rah.guild_id = $1
+                  AND ($2::text IS NULL OR COALESCE(dh.boss_key, rah.boss_key) = $2)
                   AND ($3::int IS NULL OR dh.boss_level = $3)
-                GROUP BY dh.boss_key, dh.boss_name, dh.boss_level, dp.user_id, dp.user_name
+                GROUP BY COALESCE(dh.boss_key, rah.boss_key), COALESCE(dh.boss_name, rah.boss_key), dh.boss_level, rah.user_id, rah.user_name
             ), ranked AS (
                 SELECT 
                     agg.*,
@@ -943,18 +946,18 @@ async def get_attack_holder_by_boss(guild_id=None, boss_key=None, boss_level=Non
         query_without_level = """
             WITH agg AS (
                 SELECT 
-                    dh.boss_key,
-                    dh.boss_name,
+                    COALESCE(dh.boss_key, rah.boss_key) AS boss_key,
+                    COALESCE(dh.boss_name, rah.boss_key) AS boss_name,
                     NULL::int AS boss_level,
-                    dp.user_id,
-                    dp.user_name,
-                    MAX(dp.total_damage) AS max_single_damage,
-                    MAX(dh.defeated_at) AS last_defeated_at
-                FROM raid_defeat_participants dp
-                JOIN raid_defeat_history dh ON dp.defeat_history_id = dh.id
-                WHERE dh.guild_id = $1
-                  AND ($2::text IS NULL OR dh.boss_key = $2)
-                GROUP BY dh.boss_key, dh.boss_name, dp.user_id, dp.user_name
+                    rah.user_id,
+                    rah.user_name,
+                    MAX(rah.damage) AS max_single_damage,
+                    MAX(COALESCE(dh.defeated_at, rah.attacked_at)) AS last_defeated_at
+                FROM raid_attack_history rah
+                LEFT JOIN raid_defeat_history dh ON rah.defeat_history_id = dh.id
+                WHERE rah.guild_id = $1
+                  AND ($2::text IS NULL OR COALESCE(dh.boss_key, rah.boss_key) = $2)
+                GROUP BY COALESCE(dh.boss_key, rah.boss_key), COALESCE(dh.boss_name, rah.boss_key), rah.user_id, rah.user_name
             ), ranked AS (
                 SELECT 
                     agg.*,

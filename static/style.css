@@ -266,3 +266,9 @@ h1 {
 .badge.bg-success {
     background: #48bb78 !important;
 }
+
+/* Keep action buttons visible on narrow screens */
+.table-action-col {
+    white-space: nowrap;
+    width: 1%;
+}

@@ -42,7 +42,7 @@
             <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">全ボス合算アタックホルダー</h5>
                 {% if selected_boss_key %}
-                    <span class="badge bg-light text-dark">{{ selected_boss_key }} で絞り込み</span>
+                    <span class="badge bg-light text-dark">絞り込み中</span>
                 {% else %}
                     <span class="badge bg-light text-dark">全ボス</span>
                 {% endif %}
@@ -58,7 +58,7 @@
                                 <th class="text-end">最大ダメージ</th>
                                 <th>対象ボス</th>
                                 <th>記録日時</th>
-                                <th style="width: 120px;">詳細</th>
+                                <th class="table-action-col">詳細</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -86,12 +86,11 @@
                                 </td>
                                 <td>
                                     <strong>{{ holder.boss_name }}</strong>
-                                    {% if holder.boss_key %}<span class="badge bg-secondary ms-2">{{ holder.boss_key }}</span>{% endif %}
                                 </td>
                                 <td>
                                     <small>{{ holder.defeated_at|to_jst }}</small>
                                 </td>
-                                <td>
+                                <td class="table-action-col">
                                     {% if holder.defeat_history_id %}
                                         <a href="/defeat/{{ holder.defeat_history_id }}" class="btn btn-sm btn-outline-primary">
                                             📊 詳細
@@ -117,7 +116,7 @@
             <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">ボス別アタックホルダー（各ボス上位 {{ per_boss_limit }} 件）</h5>
                 {% if selected_boss_key %}
-                    <span class="badge bg-light text-dark">{{ selected_boss_key }} のみ表示</span>
+                    <span class="badge bg-light text-dark">絞り込み中</span>
                 {% endif %}
             </div>
             <div class="card-body">
