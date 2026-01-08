@@ -15,7 +15,7 @@
                             <option value="">すべてのボス</option>
                             {% for boss in boss_choices %}
                                 <option value="{{ boss.boss_key }}" {% if boss.boss_key == selected_boss_key %}selected{% endif %}>
-                                    {{ boss.boss_name }} ({{ boss.boss_key }})
+                                    {{ boss.boss_name }}
                                 </option>
                             {% endfor %}
                         </select>
