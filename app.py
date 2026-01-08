@@ -131,15 +131,19 @@ def signal_handler(signum, frame):
     exit(0)
 
 
-async def get_defeat_history():
-    """討伐履歴一覧を取得"""
-    # データベース接続がない場合はモックデータを返す
+async def get_defeat_history(guild_id=None, boss_key=None, limit=50):
+    """討伐履歴一覧を取得（仕様準拠）"""
+    guild = guild_id or GUILD_ID
+    limit = max(1, min(int(limit or 50), 500))
+
+    # DBが無い場合のモックデータ
     if not DATABASE_URL:
         from datetime import datetime, timedelta
         now = datetime.utcnow()
-        return [
+        data = [
             {
                 'id': 1,
+                'guild_id': guild,
                 'boss_key': 'Fatal_Lake',
                 'boss_name': 'フェル・レイク',
                 'boss_max_hp': 1500,
@@ -149,6 +153,7 @@ async def get_defeat_history():
             },
             {
                 'id': 2,
+                'guild_id': guild,
                 'boss_key': 'Timed_Dragon',
                 'boss_name': '時間の番竜',
                 'boss_max_hp': 3000,
@@ -158,49 +163,62 @@ async def get_defeat_history():
             },
             {
                 'id': 3,
+                'guild_id': guild,
                 'boss_key': 'Fatal_Lake',
                 'boss_name': 'フェル・レイク',
                 'boss_max_hp': 1500,
                 'defeated_at': now - timedelta(days=2, hours=3),
                 'total_participants': 4,
                 'total_damage': 1550
-            },
-            {
-                'id': 4,
-                'boss_key': 'Fatal_Lake',
-                'boss_name': 'フェル・レイク',
-                'boss_max_hp': 1500,
-                'defeated_at': now - timedelta(days=3, hours=8),
-                'total_participants': 2,
-                'total_damage': 1520
-            },
-            {
-                'id': 5,
-                'boss_key': 'Timed_Dragon',
-                'boss_name': '時間の番竜',
-                'boss_max_hp': 3000,
-                'defeated_at': now - timedelta(days=4, hours=12),
-                'total_participants': 6,
-                'total_damage': 3100
             }
         ]
-    
+        if boss_key:
+            data = [d for d in data if d['boss_key'] == boss_key]
+        return data[:limit]
+
     pool = await init_db_pool()
     async with pool.acquire() as conn:
-        history = await conn.fetch("""
-            SELECT 
-                id,
+        if boss_key:
+            history = await conn.fetch(
+                """
+                SELECT 
+                    id,
+                    guild_id,
+                    boss_key,
+                    boss_name,
+                    boss_max_hp,
+                    defeated_at,
+                    total_participants,
+                    total_damage
+                FROM raid_defeat_history
+                WHERE guild_id = $1 AND boss_key = $2
+                ORDER BY defeated_at DESC
+                LIMIT $3
+                """,
+                guild,
                 boss_key,
-                boss_name,
-                boss_max_hp,
-                defeated_at,
-                total_participants,
-                total_damage
-            FROM raid_defeat_history
-            WHERE guild_id = $1
-            ORDER BY defeated_at DESC
-            LIMIT 100
-        """, GUILD_ID)
+                limit,
+            )
+        else:
+            history = await conn.fetch(
+                """
+                SELECT 
+                    id,
+                    guild_id,
+                    boss_key,
+                    boss_name,
+                    boss_max_hp,
+                    defeated_at,
+                    total_participants,
+                    total_damage
+                FROM raid_defeat_history
+                WHERE guild_id = $1
+                ORDER BY defeated_at DESC
+                LIMIT $2
+                """,
+                guild,
+                limit,
+            )
         return [dict(h) for h in history]
 
 
@@ -357,6 +375,26 @@ async def get_active_bosses():
         return [dict(b) for b in bosses]
 
 
+async def get_defeat_history_detail(defeat_history_id: int):
+    """討伐履歴1件を取得（参加者以外のメタ情報）"""
+    if not DATABASE_URL:
+        history = await get_defeat_history(limit=200)
+        return next((h for h in history if h.get('id') == defeat_history_id), None)
+
+    pool = await init_db_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            SELECT id, guild_id, boss_key, boss_name, boss_max_hp,
+                   defeated_at, total_participants, total_damage
+            FROM raid_defeat_history
+            WHERE id = $1
+            """,
+            defeat_history_id,
+        )
+        return dict(row) if row else None
+
+
 async def get_defeat_participants(defeat_history_id: int):
     """討伐履歴の参加者とダメージランキングを取得"""
     # データベース接続がない場合はモックデータを返す
@@ -459,135 +497,123 @@ async def get_defeat_participants(defeat_history_id: int):
         return result
 
 
-async def get_defeat_attack_history(defeat_history_id: int):
-    """討伐履歴の個別攻撃を時系列順に取得 - Updated v2"""
-    try:
-        if not DATABASE_URL:
-            from datetime import datetime, timedelta
-            now = datetime.utcnow()
-            return [
-                {
-                    'user_id': 123456789012345678,
-                    'user_name': 'Player1',
-                    'damage': 84,
-                    'is_crit': True,
-                    'attacked_at': now - timedelta(minutes=30),
-                    'sequence': 1
-                },
-                {
-                    'user_id': 234567890123456789,
-                    'user_name': 'Player2',
-                    'damage': 56,
-                    'is_crit': False,
-                    'attacked_at': now - timedelta(minutes=29),
-                    'sequence': 2
-                },
-                {
-                    'user_id': 123456789012345678,
-                    'user_name': 'Player1',
-                    'damage': 56,
-                    'is_crit': False,
-                    'attacked_at': now - timedelta(minutes=28),
-                    'sequence': 3
-                }
-            ]
-        
-        pool = await init_db_pool()
-        async with pool.acquire() as conn:
-            # まず raid_attack_history テーブルから取得を試みる
-            try:
-                attacks = await conn.fetch("""
-                    SELECT 
-                        user_id,
-                        user_name,
-                        attacked_at,
-                        turn_log
-                    FROM raid_attack_history
-                    WHERE defeat_history_id = $1
-                    ORDER BY attacked_at ASC
-                """, defeat_history_id)
-                
-                if attacks and len(attacks) > 0:
-                    result = []
-                    for attack in attacks:
-                        attack_dict = dict(attack)
-                        # turn_log を解析
-                        turn_log = attack_dict.get('turn_log')
-                        if isinstance(turn_log, str):
-                            try:
-                                turn_log = json.loads(turn_log)
-                                # 二重エンコードされている場合
-                                if isinstance(turn_log, str):
-                                    turn_log = json.loads(turn_log)
-                            except (json.JSONDecodeError, TypeError):
-                                pass
-                        attack_dict['turn_log'] = turn_log
-                        result.append(attack_dict)
-                    return result
-            except Exception:
-                pass
-            
-            # フォールバック: raid_attack_history がない場合、participants から last_turn_log を展開
-            participants = await conn.fetch("""
-                SELECT 
-                    user_id,
-                    user_name,
-                    last_turn_log,
-                    first_attack_at
-                FROM raid_defeat_participants
-                WHERE defeat_history_id = $1
-                ORDER BY first_attack_at
-            """, defeat_history_id)
-            
-            # last_turn_log を展開して履歴を作成
-            history = []
-            sequence = 1
-            for p in participants:
-                log_data = p['last_turn_log']
-                
-                # 文字列の場合はパース
-                if isinstance(log_data, str):
-                    try:
-                        log_data = json.loads(log_data)
-                        
-                        # 二重エンコードされている場合、もう一度パース
-                        if isinstance(log_data, str):
-                            log_data = json.loads(log_data)
-                    except (json.JSONDecodeError, TypeError):
-                        log_data = None
-                # リストまたは辞書の場合はそのまま使用
-                elif not isinstance(log_data, (list, dict)):
-                    log_data = None
-                
-                if log_data and isinstance(log_data, list):
-                    # 全てのアクション（プレイヤーとボス）を追加
-                    for idx, action in enumerate(log_data):
-                        # プレイヤーの攻撃のみを履歴に追加
-                        if action.get('actor') == 'player':
-                            history.append({
-                                'user_id': p['user_id'],
-                                'user_name': p['user_name'],
-                                'damage': action.get('damage', 0),
-                                'is_crit': action.get('is_crit', False),
-                                'is_miss': action.get('is_miss', False),
-                                'attacked_at': p['first_attack_at'],
-                                'sequence': sequence
-                            })
-                            sequence += 1
-            
-            return history
-    
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return []
+async def get_attack_history(
+    guild_id: int,
+    boss_key: str = None,
+    boss_level: int = None,
+    since: datetime = None,
+    limit: int = 50,
+    order: str = 'desc',
+    defeat_history_id: int = None,
+):
+    """攻撃履歴取得（進行中/討伐済み両対応）"""
+    limit = max(1, min(int(limit or 50), 500))
+    order_sql = 'ASC' if str(order).lower() == 'asc' else 'DESC'
 
-
-async def get_all_time_rankings():
-    """全期間の累計ダメージランキング"""
-    # データベース接続がない場合はモックデータを返す
     if not DATABASE_URL:
-        return [
+        from datetime import datetime, timedelta
+        now = datetime.utcnow()
+        mock = [
+            {
+                'id': 123,
+                'guild_id': guild_id,
+                'boss_key': boss_key or 'Fatal_Lake',
+                'boss_level': boss_level or 3,
+                'user_id': 555,
+                'user_name': 'Player1',
+                'damage': 18750,
+                'attacked_at': now - timedelta(minutes=15),
+                'defeat_history_id': defeat_history_id,
+                'turn_log': [
+                    {"actor": "player", "damage": 1250, "is_crit": False, "is_miss": False, "followup": False, "followup_damage": 0},
+                    {"actor": "boss", "damage": 800, "is_crit": False, "is_miss": False, "followup": False, "followup_damage": 0},
+                    {"actor": "player", "damage": 1875, "is_crit": True, "is_miss": False, "followup": True, "followup_damage": 1312}
+                ]
+            }
+        ]
+        return mock[:limit]
+
+    pool = await init_db_pool()
+    async with pool.acquire() as conn:
+        conditions = ["guild_id = $1"]
+        params = [guild_id]
+        param_idx = 2
+
+        if boss_key:
+            conditions.append(f"boss_key = ${param_idx}")
+            params.append(boss_key)
+            param_idx += 1
+        if boss_level is not None:
+            conditions.append(f"boss_level = ${param_idx}")
+            params.append(boss_level)
+            param_idx += 1
+        if since is not None:
+            conditions.append(f"attacked_at >= ${param_idx}")
+            params.append(since)
+            param_idx += 1
+        if defeat_history_id is None:
+            conditions.append("defeat_history_id IS NULL")
+        else:
+            conditions.append(f"defeat_history_id = ${param_idx}")
+            params.append(defeat_history_id)
+            param_idx += 1
+
+        sql = f"""
+            SELECT 
+                id,
+                guild_id,
+                boss_key,
+                boss_level,
+                user_id,
+                user_name,
+                damage,
+                attacked_at,
+                defeat_history_id,
+                turn_log
+            FROM raid_attack_history
+            WHERE {' AND '.join(conditions)}
+            ORDER BY attacked_at {order_sql}
+            LIMIT ${param_idx}
+        """
+        params.append(limit)
+
+        attacks = await conn.fetch(sql, *params)
+        result = []
+        for attack in attacks:
+            attack_dict = dict(attack)
+            turn_log = attack_dict.get('turn_log')
+            if isinstance(turn_log, str):
+                try:
+                    turn_log = json.loads(turn_log)
+                    if isinstance(turn_log, str):
+                        turn_log = json.loads(turn_log)
+                except (json.JSONDecodeError, TypeError):
+                    turn_log = None
+            attack_dict['turn_log'] = turn_log
+            result.append(attack_dict)
+        return result
+
+
+async def get_defeat_attack_history(defeat_history_id: int, limit: int = 500, order: str = 'asc'):
+    """討伐済みボスの攻撃履歴を取得（仕様準拠）"""
+    return await get_attack_history(
+        guild_id=GUILD_ID,
+        boss_key=None,
+        boss_level=None,
+        since=None,
+        limit=limit,
+        order=order,
+        defeat_history_id=defeat_history_id,
+    )
+
+
+async def get_all_time_rankings(guild_id=None, boss_key=None, limit=100):
+    """全期間の累計ダメージランキング（仕様準拠）"""
+    guild = guild_id or GUILD_ID
+    limit = max(1, min(int(limit or 100), 500))
+
+    if not DATABASE_URL:
+        mock = [
             {
                 'user_id': 123456789012345678,
                 'user_name': 'Player1',
@@ -601,51 +627,108 @@ async def get_all_time_rankings():
                 'total_defeats': 12,
                 'total_damage': 7200,
                 'total_actions': 120
-            },
-            {
-                'user_id': 345678901234567890,
-                'user_name': 'Player3',
-                'total_defeats': 18,
-                'total_damage': 9100,
-                'total_actions': 180
-            },
-            {
-                'user_id': 456789012345678901,
-                'user_name': 'Player4',
-                'total_defeats': 10,
-                'total_damage': 6500,
-                'total_actions': 100
-            },
-            {
-                'user_id': 567890123456789012,
-                'user_name': 'Player5',
-                'total_defeats': 8,
-                'total_damage': 5200,
-                'total_actions': 80
             }
         ]
-    
+        return mock[:limit]
+
     pool = await init_db_pool()
     async with pool.acquire() as conn:
-        rankings = await conn.fetch("""
-            SELECT 
-                dp.user_id,
-                dp.user_name,
-                COUNT(DISTINCT dp.defeat_history_id) as total_defeats,
-                SUM(dp.total_damage) as total_damage,
-                SUM(dp.action_count) as total_actions
-            FROM raid_defeat_participants dp
-            JOIN raid_defeat_history dh ON dp.defeat_history_id = dh.id
-            WHERE dh.guild_id = $1
-            GROUP BY dp.user_id, dp.user_name
-            ORDER BY total_damage DESC
-            LIMIT 50
-        """, GUILD_ID)
+        if boss_key:
+            rankings = await conn.fetch(
+                """
+                SELECT 
+                    dp.user_id,
+                    dp.user_name,
+                    COUNT(*) as defeat_count,
+                    SUM(dp.total_damage) as total_damage,
+                    SUM(dp.action_count) as total_actions,
+                    MAX(dh.defeated_at) as last_defeat_at
+                FROM raid_defeat_participants dp
+                JOIN raid_defeat_history dh ON dp.defeat_history_id = dh.id
+                WHERE dh.guild_id = $1 AND dh.boss_key = $2
+                GROUP BY dp.user_id, dp.user_name
+                ORDER BY total_damage DESC
+                LIMIT $3
+                """,
+                guild,
+                boss_key,
+                limit,
+            )
+        else:
+            rankings = await conn.fetch(
+                """
+                SELECT 
+                    dp.user_id,
+                    dp.user_name,
+                    COUNT(DISTINCT dp.defeat_history_id) as total_defeats,
+                    SUM(dp.total_damage) as total_damage,
+                    SUM(dp.action_count) as total_actions
+                FROM raid_defeat_participants dp
+                JOIN raid_defeat_history dh ON dp.defeat_history_id = dh.id
+                WHERE dh.guild_id = $1
+                GROUP BY dp.user_id, dp.user_name
+                ORDER BY total_damage DESC
+                LIMIT $2
+                """,
+                guild,
+                limit,
+            )
         return [dict(r) for r in rankings]
 
-async def get_user_stats(user_id):
-    """特定ユーザーの統計を取得"""
-    # データベース接続がない場合はモックデータを返す
+
+async def get_fastest_clears(guild_id=None, limit=20):
+    """最速討伐記録"""
+    guild = guild_id or GUILD_ID
+    limit = max(1, min(int(limit or 20), 50))
+
+    if not DATABASE_URL:
+        from datetime import datetime, timedelta
+        return [
+            {
+                'id': 5,
+                'guild_id': guild,
+                'boss_key': 'Fatal_Lake',
+                'boss_name': '運命の湖',
+                'boss_max_hp': 100000,
+                'defeated_at': datetime.utcnow(),
+                'total_participants': 5,
+                'total_damage': 105000,
+                'clear_time': timedelta(minutes=15, seconds=30)
+            }
+        ]
+
+    pool = await init_db_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT 
+                id,
+                guild_id,
+                boss_key,
+                boss_name,
+                boss_max_hp,
+                defeated_at,
+                total_participants,
+                total_damage,
+                (
+                    SELECT MAX(last_attack_at) - MIN(first_attack_at)
+                    FROM raid_defeat_participants
+                    WHERE defeat_history_id = raid_defeat_history.id
+                ) as clear_time
+            FROM raid_defeat_history
+            WHERE guild_id=$1
+            ORDER BY clear_time ASC
+            LIMIT $2
+            """,
+            guild,
+            limit,
+        )
+        return [dict(r) for r in rows]
+
+async def get_user_stats(guild_id, user_id):
+    """特定ユーザーの統計（仕様準拠）"""
+    guild = guild_id or GUILD_ID
+
     if DATABASE_URL is None:
         return {
             'user_id': user_id,
@@ -670,7 +753,8 @@ async def get_user_stats(user_id):
     
     pool = await init_db_pool()
     async with pool.acquire() as conn:
-        stats = await conn.fetchrow("""
+        stats = await conn.fetchrow(
+            """
             SELECT 
                 COUNT(*) as total_defeats,
                 SUM(total_damage) as total_damage,
@@ -678,9 +762,13 @@ async def get_user_stats(user_id):
             FROM raid_defeat_participants dp
             JOIN raid_defeat_history dh ON dp.defeat_history_id = dh.id
             WHERE dh.guild_id = $1 AND dp.user_id = $2
-        """, GUILD_ID, user_id)
+            """,
+            guild,
+            user_id,
+        )
         
-        boss_stats = await conn.fetch("""
+        boss_stats = await conn.fetch(
+            """
             SELECT 
                 dh.boss_key,
                 dh.boss_name,
@@ -691,15 +779,21 @@ async def get_user_stats(user_id):
             WHERE dh.guild_id = $1 AND dp.user_id = $2
             GROUP BY dh.boss_key, dh.boss_name
             ORDER BY defeat_count DESC
-        """, GUILD_ID, user_id)
+            """,
+            guild,
+            user_id,
+        )
         
         result = dict(stats) if stats else {}
         result['bosses_defeated'] = [dict(b) for b in boss_stats]
         return result
 
 
-async def get_attack_holder(boss_key=None, limit=100):
+async def get_attack_holder(guild_id=None, boss_key=None, limit=100):
     """アタックホルダー（1回の戦闘での最大ダメージランキング）"""
+    guild = guild_id or GUILD_ID
+    limit = max(1, min(int(limit or 100), 500))
+
     if DATABASE_URL is None:
         return [
             {
@@ -721,70 +815,174 @@ async def get_attack_holder(boss_key=None, limit=100):
                 'defeat_history_id': 5
             }
         ]
-    
+
     pool = await init_db_pool()
     async with pool.acquire() as conn:
-        # raid_attack_history テーブルから1回の攻撃での最大ダメージを取得
+        # raid_defeat_participants から「1回の討伐での最大ダメージ」を算出（仕様書準拠）
         if boss_key:
-            # 特定ボスでの最大ダメージランキング
-            rows = await conn.fetch("""
-                WITH max_damages AS (
+            rows = await conn.fetch(
+                """
+                WITH ranked AS (
                     SELECT 
-                        rah.user_id,
-                        rah.user_name,
-                        rah.damage,
+                        dp.user_id,
+                        dp.user_name,
+                        dp.total_damage AS max_single_damage,
                         dh.boss_name,
                         dh.boss_key,
-                        rah.attacked_at,
-                        rah.defeat_history_id,
-                        ROW_NUMBER() OVER (PARTITION BY rah.user_id ORDER BY rah.damage DESC) as rn
-                    FROM raid_attack_history rah
-                    JOIN raid_defeat_history dh ON rah.defeat_history_id = dh.id
+                        dh.defeated_at,
+                        dh.id AS defeat_history_id,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY dp.user_id
+                            ORDER BY dp.total_damage DESC, dh.defeated_at DESC, dp.user_id
+                        ) AS rn
+                    FROM raid_defeat_participants dp
+                    JOIN raid_defeat_history dh ON dp.defeat_history_id = dh.id
                     WHERE dh.guild_id = $1 AND dh.boss_key = $2
                 )
-                SELECT 
-                    user_id,
-                    user_name,
-                    damage as max_single_damage,
-                    boss_name,
-                    boss_key,
-                    attacked_at as defeated_at,
-                    defeat_history_id
-                FROM max_damages
-                WHERE rn = 1
+                SELECT * FROM ranked WHERE rn = 1
                 ORDER BY max_single_damage DESC
                 LIMIT $3
-            """, GUILD_ID, boss_key, limit)
+                """,
+                guild,
+                boss_key,
+                limit
+            )
         else:
-            # 全ボスを対象にした最大ダメージランキング
-            rows = await conn.fetch("""
-                WITH max_damages AS (
+            rows = await conn.fetch(
+                """
+                WITH ranked AS (
                     SELECT 
-                        rah.user_id,
-                        rah.user_name,
-                        rah.damage,
+                        dp.user_id,
+                        dp.user_name,
+                        dp.total_damage AS max_single_damage,
                         dh.boss_name,
                         dh.boss_key,
-                        rah.attacked_at,
-                        rah.defeat_history_id,
-                        ROW_NUMBER() OVER (PARTITION BY rah.user_id ORDER BY rah.damage DESC) as rn
-                    FROM raid_attack_history rah
-                    JOIN raid_defeat_history dh ON rah.defeat_history_id = dh.id
+                        dh.defeated_at,
+                        dh.id AS defeat_history_id,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY dp.user_id
+                            ORDER BY dp.total_damage DESC, dh.defeated_at DESC, dp.user_id
+                        ) AS rn
+                    FROM raid_defeat_participants dp
+                    JOIN raid_defeat_history dh ON dp.defeat_history_id = dh.id
                     WHERE dh.guild_id = $1
                 )
-                SELECT 
-                    user_id,
-                    user_name,
-                    damage as max_single_damage,
-                    boss_name,
-                    boss_key,
-                    attacked_at as defeated_at,
-                    defeat_history_id
-                FROM max_damages
-                WHERE rn = 1
+                SELECT * FROM ranked WHERE rn = 1
                 ORDER BY max_single_damage DESC
                 LIMIT $2
-            """, GUILD_ID, limit)
+                """,
+                guild,
+                limit
+            )
+        return [dict(r) for r in rows]
+
+
+async def get_attack_holder_by_boss(guild_id=None, boss_key=None, boss_level=None, per_boss_limit=5):
+    """ボス別アタックホルダー（各ボス上位N件）"""
+    guild = guild_id or GUILD_ID
+    per_boss_limit = max(1, min(per_boss_limit or 5, 10))
+
+    if DATABASE_URL is None:
+        mock = [
+            {
+                'boss_key': 'Fatal_Lake',
+                'boss_name': 'フェル・レイク',
+                'boss_level': 3,
+                'user_id': 111,
+                'user_name': 'Player1',
+                'max_single_damage': 92000,
+                'last_defeated_at': datetime.utcnow(),
+                'rn': 1
+            },
+            {
+                'boss_key': 'Timed_Dragon',
+                'boss_name': '時間の番竜',
+                'boss_level': 2,
+                'user_id': 222,
+                'user_name': 'Player2',
+                'max_single_damage': 80500,
+                'last_defeated_at': datetime.utcnow(),
+                'rn': 1
+            }
+        ]
+        if boss_key:
+            return [m for m in mock if m['boss_key'] == boss_key]
+        return mock
+
+    pool = await init_db_pool()
+    async with pool.acquire() as conn:
+        # まず boss_level を含むクエリを試し、列が存在しない場合はフォールバック
+        query_with_level = """
+            WITH agg AS (
+                SELECT 
+                    dh.boss_key,
+                    dh.boss_name,
+                    dh.boss_level,
+                    dp.user_id,
+                    dp.user_name,
+                    MAX(dp.total_damage) AS max_single_damage,
+                    MAX(dh.defeated_at) AS last_defeated_at
+                FROM raid_defeat_participants dp
+                JOIN raid_defeat_history dh ON dp.defeat_history_id = dh.id
+                WHERE dh.guild_id = $1
+                  AND ($2::text IS NULL OR dh.boss_key = $2)
+                  AND ($3::int IS NULL OR dh.boss_level = $3)
+                GROUP BY dh.boss_key, dh.boss_name, dh.boss_level, dp.user_id, dp.user_name
+            ), ranked AS (
+                SELECT 
+                    agg.*,
+                    ROW_NUMBER() OVER (PARTITION BY agg.boss_key, agg.boss_level ORDER BY agg.max_single_damage DESC, agg.user_id) AS rn
+                FROM agg
+            )
+            SELECT *
+            FROM ranked
+            WHERE rn <= $4
+            ORDER BY boss_key, boss_level, rn
+        """
+
+        query_without_level = """
+            WITH agg AS (
+                SELECT 
+                    dh.boss_key,
+                    dh.boss_name,
+                    NULL::int AS boss_level,
+                    dp.user_id,
+                    dp.user_name,
+                    MAX(dp.total_damage) AS max_single_damage,
+                    MAX(dh.defeated_at) AS last_defeated_at
+                FROM raid_defeat_participants dp
+                JOIN raid_defeat_history dh ON dp.defeat_history_id = dh.id
+                WHERE dh.guild_id = $1
+                  AND ($2::text IS NULL OR dh.boss_key = $2)
+                GROUP BY dh.boss_key, dh.boss_name, dp.user_id, dp.user_name
+            ), ranked AS (
+                SELECT 
+                    agg.*,
+                    ROW_NUMBER() OVER (PARTITION BY agg.boss_key ORDER BY agg.max_single_damage DESC, agg.user_id) AS rn
+                FROM agg
+            )
+            SELECT *
+            FROM ranked
+            WHERE rn <= $3
+            ORDER BY boss_key, rn
+        """
+
+        try:
+            rows = await conn.fetch(
+                query_with_level,
+                guild,
+                boss_key,
+                boss_level,
+                per_boss_limit
+            )
+        except Exception:
+            rows = await conn.fetch(
+                query_without_level,
+                guild,
+                boss_key,
+                per_boss_limit
+            )
+
         return [dict(r) for r in rows]
 
 
@@ -802,10 +1000,7 @@ def defeat_detail(defeat_id):
     """討伐詳細：攻撃履歴"""
     attack_history = run_async(get_defeat_attack_history(defeat_id))
     participants = run_async(get_defeat_participants(defeat_id))
-    history_list = run_async(get_defeat_history())
-    
-    # 該当討伐の情報を取得
-    defeat_info = next((h for h in history_list if h['id'] == defeat_id), None)
+    defeat_info = run_async(get_defeat_history_detail(defeat_id))
     
     return render_template(
         'boss_detail.html',
@@ -819,22 +1014,57 @@ def defeat_detail(defeat_id):
 @app.route('/rankings')
 def rankings():
     """全期間ランキング"""
-    rankings = run_async(get_all_time_rankings())
+    rankings = run_async(get_all_time_rankings(guild_id=GUILD_ID, limit=50))
     return render_template('rankings.html', rankings=rankings)
 
 
 @app.route('/user/<int:user_id>')
 def user_detail(user_id):
     """ユーザー詳細統計"""
-    stats = run_async(get_user_stats(user_id))
+    stats = run_async(get_user_stats(GUILD_ID, user_id))
     return render_template('user_detail.html', stats=stats, user_id=user_id)
 
 
 @app.route('/attack-holder')
 def attack_holder_page():
     """アタックホルダー（1回の戦闘での最大ダメージランキング）"""
-    holders = run_async(get_attack_holder(limit=50))
-    return render_template('attack_holder.html', holders=holders)
+    from flask import request
+
+    boss_key = request.args.get('boss_key') or None
+    boss_level_raw = request.args.get('boss_level')
+    boss_level = int(boss_level_raw) if boss_level_raw else None
+    per_boss_limit = int(request.args.get('per_boss_limit', 5) or 5)
+    # 全ボス合算（または特定ボス）のランキング
+    holders = run_async(get_attack_holder(guild_id=GUILD_ID, boss_key=boss_key, limit=50))
+    # ボス別ランキング（各ボス上位N件）
+    holders_by_boss = run_async(
+        get_attack_holder_by_boss(
+            guild_id=GUILD_ID,
+            boss_key=boss_key,
+            boss_level=boss_level,
+            per_boss_limit=per_boss_limit
+        )
+    )
+    # セレクトボックス用のボス一覧（討伐履歴から収集）
+    history_list = run_async(get_defeat_history(guild_id=GUILD_ID, limit=200))
+    boss_choices = []
+    seen_keys = set()
+    for h in history_list:
+        key = h.get('boss_key')
+        name = h.get('boss_name')
+        if key and key not in seen_keys:
+            boss_choices.append({'boss_key': key, 'boss_name': name})
+            seen_keys.add(key)
+
+    return render_template(
+        'attack_holder.html',
+        holders=holders,
+        holders_by_boss=holders_by_boss,
+        boss_choices=boss_choices,
+        selected_boss_key=boss_key,
+        selected_boss_level=boss_level,
+        per_boss_limit=per_boss_limit
+    )
 
 
 # ===== API エンドポイント =====
@@ -845,18 +1075,14 @@ def api_defeat_history(guild_id):
     from flask import request
     boss_key = request.args.get('boss_key')
     limit = int(request.args.get('limit', 50))
-    # 簡易実装（GUILD_IDを使用）
-    history = run_async(get_defeat_history())
-    if boss_key:
-        history = [h for h in history if h.get('boss_key') == boss_key]
-    return jsonify(history[:limit])
+    history = run_async(get_defeat_history(guild_id=guild_id, boss_key=boss_key, limit=limit))
+    return jsonify(history)
 
 
 @app.route('/api/defeat-history/detail/<int:defeat_history_id>')
 def api_defeat_detail(defeat_history_id):
     """API: 討伐履歴詳細（参加者情報含む）"""
-    history_list = run_async(get_defeat_history())
-    defeat_info = next((h for h in history_list if h['id'] == defeat_history_id), None)
+    defeat_info = run_async(get_defeat_history_detail(defeat_history_id))
     participants = run_async(get_defeat_participants(defeat_history_id))
     return jsonify({
         'history': defeat_info,
@@ -867,7 +1093,7 @@ def api_defeat_detail(defeat_history_id):
 @app.route('/api/user-stats/<int:guild_id>/<int:user_id>')
 def api_user_stats(guild_id, user_id):
     """API: ユーザー統計（仕様書準拠）"""
-    stats = run_async(get_user_stats(user_id))
+    stats = run_async(get_user_stats(guild_id, user_id))
     return jsonify(stats)
 
 
@@ -877,9 +1103,8 @@ def api_ranking(guild_id):
     from flask import request
     boss_key = request.args.get('boss_key')
     limit = int(request.args.get('limit', 100))
-    # 簡易実装（現在の実装を使用）
-    rankings = run_async(get_all_time_rankings())
-    return jsonify(rankings[:limit])
+    rankings = run_async(get_all_time_rankings(guild_id=guild_id, boss_key=boss_key, limit=limit))
+    return jsonify(rankings)
 
 
 @app.route('/api/attack-holder/<int:guild_id>')
@@ -888,8 +1113,89 @@ def api_attack_holder(guild_id):
     from flask import request
     boss_key = request.args.get('boss_key')
     limit = int(request.args.get('limit', 100))
-    holders = run_async(get_attack_holder(boss_key=boss_key, limit=limit))
+    holders = run_async(get_attack_holder(guild_id=guild_id, boss_key=boss_key, limit=limit))
     return jsonify(holders)
+
+
+@app.route('/api/attack-holder/by-boss/<int:guild_id>')
+def api_attack_holder_by_boss(guild_id):
+    """API: ボス別アタックホルダー（各ボス上位N件）"""
+    from flask import request
+    boss_key = request.args.get('boss_key')
+    boss_level_raw = request.args.get('boss_level')
+    boss_level = int(boss_level_raw) if boss_level_raw else None
+    per_boss_limit = int(request.args.get('per_boss_limit', 5) or 5)
+    holders = run_async(
+        get_attack_holder_by_boss(
+            guild_id=guild_id,
+            boss_key=boss_key,
+            boss_level=boss_level,
+            per_boss_limit=per_boss_limit
+        )
+    )
+    return jsonify(holders)
+
+
+@app.route('/api/attack-history/<int:guild_id>')
+def api_attack_history(guild_id):
+    """API: 進行中ボスの戦闘ログ取得"""
+    from flask import request
+    boss_key = request.args.get('boss_key')
+    boss_level_raw = request.args.get('boss_level')
+    boss_level = int(boss_level_raw) if boss_level_raw else None
+    since_raw = request.args.get('since')
+    since = None
+    if since_raw:
+        try:
+            since = datetime.fromisoformat(since_raw)
+        except Exception:
+            since = None
+    limit = min(int(request.args.get('limit', 50) or 50), 200)
+    order = request.args.get('order', 'desc')
+
+    attacks = run_async(
+        get_attack_history(
+            guild_id=guild_id,
+            boss_key=boss_key,
+            boss_level=boss_level,
+            since=since,
+            limit=limit,
+            order=order,
+            defeat_history_id=None,
+        )
+    )
+    return jsonify(attacks)
+
+
+@app.route('/api/attack-history/by-defeat/<int:defeat_history_id>')
+def api_attack_history_by_defeat(defeat_history_id):
+    """API: 討伐済みボスの戦闘ログ取得"""
+    from flask import request
+    boss_key = request.args.get('boss_key')
+    boss_level_raw = request.args.get('boss_level')
+    boss_level = int(boss_level_raw) if boss_level_raw else None
+    since_raw = request.args.get('since')
+    since = None
+    if since_raw:
+        try:
+            since = datetime.fromisoformat(since_raw)
+        except Exception:
+            since = None
+    limit = min(int(request.args.get('limit', 200) or 200), 500)
+    order = request.args.get('order', 'desc')
+
+    attacks = run_async(
+        get_attack_history(
+            guild_id=GUILD_ID,
+            boss_key=boss_key,
+            boss_level=boss_level,
+            since=since,
+            limit=limit,
+            order=order,
+            defeat_history_id=defeat_history_id,
+        )
+    )
+    return jsonify(attacks)
 
 
 @app.route('/api/defeat/<int:defeat_id>/participants')
@@ -904,6 +1210,15 @@ def api_rankings():
     """API: 全期間ランキング（後方互換性のため残す）"""
     rankings = run_async(get_all_time_rankings())
     return jsonify(rankings)
+
+
+@app.route('/api/fastest-clears/<int:guild_id>')
+def api_fastest_clears(guild_id):
+    """API: 最速討伐記録"""
+    from flask import request
+    limit = int(request.args.get('limit', 20) or 20)
+    rows = run_async(get_fastest_clears(guild_id=guild_id, limit=limit))
+    return jsonify(rows)
 
 
 @app.route('/health')

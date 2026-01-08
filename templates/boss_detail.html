@@ -32,9 +32,11 @@
                             {% if battle_log and battle_log is sequence %}
                                 {% for action in battle_log %}
                                     {% if action.actor == 'player' and not action.is_miss %}
-                                        {% set ns.player_total = ns.player_total + action.damage %}
+                                        {% set base = action.damage or 0 %}
+                                        {% set follow = (action.followup_damage or 0) if action.followup else 0 %}
+                                        {% set ns.player_total = ns.player_total + base + follow %}
                                     {% elif (action.actor == 'boss' or action.actor == 'enemy') and not action.is_miss %}
-                                        {% set ns.boss_total = ns.boss_total + action.damage %}
+                                        {% set ns.boss_total = ns.boss_total + (action.damage or 0) %}
                                     {% endif %}
                                 {% endfor %}
                             {% endif %}
@@ -81,8 +83,16 @@
                                                     {% else %}
                                                         → <span style="color: #dc3545; font-weight: bold;">{{ action.damage }}</span> ダメージ
                                                         {% if action.is_crit %}<span style="color: #ffc107; font-weight: bold;"> ⭐ クリティカル！</span>{% endif %}
+                                                        {% if action.followup and (action.followup_damage or 0) > 0 %}
+                                                            <span style="color: #20c997; font-weight: bold;"> +{{ action.followup_damage }} 追撃</span>
+                                                        {% endif %}
                                                     {% endif %}
                                                 </div>
+                                                {% if action.followup and (action.followup_damage or 0) > 0 %}
+                                                    <div style="color: #20c997; padding: 2px 0; padding-left: 24px;">
+                                                        ↳ 追撃ヒット！ +{{ action.followup_damage }}
+                                                    </div>
+                                                {% endif %}
                                                 {% elif action.actor == 'boss' or action.actor == 'enemy' %}
                                                 <div style="color: #dc3545; padding: 4px 0; padding-left: 20px;">
                                                     🔥 {{ defeat.boss_name }} の攻撃
@@ -137,9 +147,11 @@
                                 {% set ns = namespace(player_total=0, boss_total=0) %}
                                 {% for action in battle_log %}
                                     {% if action.actor == 'player' and not action.is_miss %}
-                                        {% set ns.player_total = ns.player_total + action.damage %}
+                                        {% set base = action.damage or 0 %}
+                                        {% set follow = (action.followup_damage or 0) if action.followup else 0 %}
+                                        {% set ns.player_total = ns.player_total + base + follow %}
                                     {% elif (action.actor == 'boss' or action.actor == 'enemy') and not action.is_miss %}
-                                        {% set ns.boss_total = ns.boss_total + action.damage %}
+                                        {% set ns.boss_total = ns.boss_total + (action.damage or 0) %}
                                     {% endif %}
                                 {% endfor %}
                                 
@@ -172,11 +184,7 @@
                                             
                                             <div style="font-family: 'Courier New', monospace; font-size: 13px; line-height: 2;">
                                                 {% for action in battle_log %}
-                                                    {% if action.is_follow or action.is_extra %}
-                                                        <div style="color: #20c997; padding: 4px 0;">
-                                                            🗡️追撃発生！→+{{ action.damage }}ダメージ
-                                                        </div>
-                                                    {% elif action.actor == 'player' %}
+                                                    {% if action.actor == 'player' %}
                                                         <div style="color: #0d6efd; padding: 4px 0;">
                                                             ⚔️ {{ participant.user_name }} の攻撃
                                                             {% if action.is_miss %}
@@ -184,8 +192,16 @@
                                                             {% else %}
                                                                 → <span style="color: #dc3545; font-weight: bold;">{{ action.damage }}</span> ダメージ
                                                                 {% if action.is_crit %}<span style="color: #ffc107; font-weight: bold;"> ⭐ クリティカル！</span>{% endif %}
+                                                                {% if action.followup and (action.followup_damage or 0) > 0 %}
+                                                                    <span style="color: #20c997; font-weight: bold;"> +{{ action.followup_damage }} 追撃</span>
+                                                                {% endif %}
                                                             {% endif %}
                                                         </div>
+                                                        {% if action.followup and (action.followup_damage or 0) > 0 %}
+                                                        <div style="color: #20c997; padding: 2px 0; padding-left: 24px;">
+                                                            ↳ 追撃ヒット！ +{{ action.followup_damage }}
+                                                        </div>
+                                                        {% endif %}
                                                     {% elif action.actor == 'boss' or action.actor == 'enemy' %}
                                                         <div style="color: #dc3545; padding: 4px 0; padding-left: 20px;">
                                                             🔥 {{ defeat.boss_name }} の攻撃
