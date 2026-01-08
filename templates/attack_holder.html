@@ -121,33 +121,35 @@
             </div>
             <div class="card-body">
                 {% if holders_by_boss %}
-                    {% for boss_key, items in holders_by_boss|groupby('boss_key') %}
-                        {% set first = items|first %}
-                        <div class="mb-4">
-                            <h6 class="mb-3">🛡️ {{ first.boss_name }}{% if first.boss_level %} (Lv.{{ first.boss_level }}){% endif %}</h6>
-                            <div class="table-responsive">
-                                <table class="table table-hover table-sm">
-                                    <thead>
-                                        <tr>
-                                            <th style="width: 60px;">順位</th>
-                                            <th>ユーザー名</th>
-                                            <th class="text-end">最大ダメージ</th>
-                                            <th>最終更新</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for holder in items %}
-                                        <tr>
-                                            <td>#{{ holder.rn }}</td>
-                                            <td>{{ holder.user_name }}</td>
-                                            <td class="text-end"><strong class="text-danger">{{ holder.max_single_damage|format_number }}</strong></td>
-                                            <td><small>{{ holder.last_defeated_at|to_jst }}</small></td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
+                    {% for boss_key, items_by_key in holders_by_boss|groupby('boss_key') %}
+                        {% for boss_level, items in items_by_key|groupby('boss_level') %}
+                            {% set first = items|first %}
+                            <div class="mb-4">
+                                <h6 class="mb-3">🛡️ {{ first.boss_name }}{% if first.boss_level %} (Lv.{{ first.boss_level }}){% endif %}</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-hover table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 60px;">順位</th>
+                                                <th>ユーザー名</th>
+                                                <th class="text-end">最大ダメージ</th>
+                                                <th>最終更新</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for holder in items %}
+                                            <tr>
+                                                <td>#{{ holder.rn }}</td>
+                                                <td>{{ holder.user_name }}</td>
+                                                <td class="text-end"><strong class="text-danger">{{ holder.max_single_damage|format_number }}</strong></td>
+                                                <td><small>{{ holder.last_defeated_at|to_jst }}</small></td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
-                        </div>
+                        {% endfor %}
                     {% endfor %}
                 {% else %}
                     <p class="text-muted mb-0">データがありません</p>
