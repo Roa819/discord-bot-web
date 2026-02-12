@@ -77,6 +77,12 @@ def parse_json(value):
 db_pool = None
 loop = None
 loop_thread = None
+RETRYABLE_DB_ERRORS = (
+    asyncpg.exceptions.PostgresConnectionError,
+    asyncpg.exceptions.InterfaceError,
+    asyncio.TimeoutError,
+    OSError,
+)
 
 
 def get_or_create_eventloop():
@@ -128,12 +134,10 @@ async def execute_with_retry(func, *args, max_retries=3, **kwargs):
         try:
             pool = await init_db_pool()
             return await func(pool, *args, **kwargs)
-        except (asyncpg.exceptions.ConnectionDoesNotExistError,
-                asyncpg.exceptions.ConnectionFailureError,
-                asyncpg.exceptions.InterfaceError) as e:
+        except RETRYABLE_DB_ERRORS as e:
             # 接続エラーの場合、プールを再初期化
             global db_pool
-            if db_pool:
+            if db_pool is not None:
                 try:
                     await db_pool.close()
                 except Exception:
@@ -257,7 +261,7 @@ async def get_defeat_history(guild_id=None, boss_key=None, limit=50):
                 )
     
     history = await execute_with_retry(_fetch_history)
-        return [dict(h) for h in history]
+    return [dict(h) for h in history]
 
 
 async def get_active_bosses():
@@ -779,7 +783,7 @@ async def get_user_stats(guild_id, user_id):
     """特定ユーザーの統計（仕様準拠）"""
     guild = guild_id or GUILD_ID
 
-    if DATABASE_URL is None:
+    if not DATABASE_URL:
         return {
             'user_id': user_id,
             'total_defeats': 15,
@@ -846,7 +850,7 @@ async def get_attack_holder(guild_id=None, boss_key=None, limit=100):
     guild = guild_id or GUILD_ID
     limit = max(1, min(int(limit or 100), 500))
 
-    if DATABASE_URL is None:
+    if not DATABASE_URL:
         return [
             {
                 'user_id': 345678901234567890,
@@ -940,7 +944,7 @@ async def get_attack_holder_by_boss(guild_id=None, boss_key=None, boss_level=Non
     guild = guild_id or GUILD_ID
     per_boss_limit = max(1, min(per_boss_limit or 5, 10))
 
-    if DATABASE_URL is None:
+    if not DATABASE_URL:
         mock = [
             {
                 'boss_key': 'Fatal_Lake',
